@@ -1,0 +1,40 @@
+# PitchFlow RubberBand Server
+
+高品質な移調を目的に、ブラウザ単体処理ではなくサーバー側で Rubber Band Library を使って変換する版です。
+
+## 機能
+
+- MP3 / WAV / M4A などの音源をアップロード
+- -12〜+12半音で移調
+- テンポ維持
+- 変換後WAVを再生
+- 変換後WAVをダウンロード
+- サーバー上の一時ファイルは自動削除
+
+## ローカル起動
+
+Docker が使える場合：
+
+```bash
+docker build -t pitchflow .
+docker run -p 8000:8000 pitchflow
+```
+
+ブラウザで開く：
+
+```text
+http://localhost:8000
+```
+
+## Renderで公開する場合
+
+1. GitHubにこのフォルダ一式をアップロード
+2. Renderで New → Web Service
+3. GitHub Repositoryを接続
+4. Environment は Docker を選択
+5. Deploy
+
+## 注意
+
+このアプリは音源ファイルをサーバーへ一時アップロードして変換します。
+著作権のある音源を扱う場合は、私的利用や権利上問題ない範囲で使ってください。
