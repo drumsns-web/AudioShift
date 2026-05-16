@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>PitchFlow Single</title>
+  <style>
+    body{font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;margin:0;background:#0f172a;color:#f8fafc}
+    main{max-width:780px;margin:auto;padding:24px}
+    section{background:#111827;border:1px solid #334155;border-radius:18px;padding:18px;margin:14px 0}
+    input,select,button,audio{width:100%;font-size:16px;margin-top:8px}
+    button{padding:14px;border:0;border-radius:14px;background:#38bdf8;font-weight:700}
+    button:disabled{opacity:.45}
+    .value{font-size:28px;font-weight:800}
+    .bar{height:10px;background:#020617;border-radius:999px;overflow:hidden}
+    .bar div{height:100%;width:0;background:#22c55e}
+    .note{color:#94a3b8;font-size:14px;line-height:1.6}
+  </style>
+</head>
+<body>
+<main>
+  <h1>PitchFlow Single</h1>
+  <p class="note">音源を読み込み、キーを変換して再生します。サーバーには送信しません。</p>
+
+  <section>
+    <label>音源ファイル</label>
+    <input id="file" type="file" accept="audio/*">
+  </section>
+
+  <section>
+    <label>移調量</label>
+    <input id="semi" type="range" min="-12" max="12" step="1" value="0">
+    <div class="value"><span id="label">0</span> 半音</div>
+    <label>品質</label>
+    <select id="quality">
+      <option value="fast">Fast</option>
+      <option value="balanced" selected>Balanced</option>
+      <option value="hq">HQ</option>
+    </select>
+  </section>
+
+  <section>
+    <button id="convert" disabled>変換する</button>
+    <p id="status" class="note">音源を選択してください。</p>
+    <div class="bar"><div id="progress"></div></div>
+  </section>
+
+  <section>
+    <audio id="player" controls></audio>
+    <button id="download" disabled>WAVを保存</button>
+  </section>
+</main>
+
+<script>
+let audioBuffer=null, outBlob=null, outUrl=null, fileName='pitchflow';
+const file=document.getElementById('file'), semi=document.getElementById('semi'), label=document.getElementById('label'), quality=document.getElementById('quality'), convert=document.getElementById('convert'), statusEl=document.getElementById('status'), progress=document.getElementById('progress'), player=document.getElementById('player'), download=document.getElementById('download');
+
+function status(t,p){statusEl.textContent=t;if(p!=null)progress.style.width=p+'%';}
+semi.oninput=()=>{const v=+semi.value;label.textContent=v>0?'+'+v:v;};
+
+file.onchange=async()=>{
+  const f=file.files[0]; if(!f)return;
+  fileName=f.name.replace(/\.[^.]+$/,'');
+  status('読み込み中...',10);
+  try{
+    const ab=await f.arrayBuffer();
+    const ctx=new (window.AudioContext||window.webkitAudioContext)();
+    audioBuffer=await ctx.decodeAudioData(ab);
+    await ctx.close();
+    convert.disabled=false;
+    status('読み込み完了：'+Math.round(audioBuffer.duration)+'秒 / '+audioBuffer.sampleRate+'Hz',100);
+  }catch(e){
+    console.error(e); status('読み込み失敗。別の音源で試してください。',0);
+  }
+};
+
+function hann(n,N){return .5*(1-Math.cos(2*Math.PI*n/(N-1)));}
+function stretch(input,factor,q){
+  if(Math.abs(factor-1)<.0001)return input.slice();
+  const frame=q==='hq'?4096:q==='balanced'?2048:1024;
+  const hopOut=512, hopIn=Math.max(1,Math.round(hopOut/factor));
+  const outLen=Math.ceil(input.length*factor)+frame*2;
+  const out=new Float32Array(outLen), wgt=new Float32Array(outLen);
+  let ip=0,op=0;
+  while(ip+frame<input.length && op+frame<outLen){
+    for(let i=0;i<frame;i++){const w=hann(i,frame);out[op+i]+=input[ip+i]*w;wgt[op+i]+=w;}
+    ip+=hopIn;op+=hopOut;
+  }
+  for(let i=0;i<out.length;i++) if(wgt[i]>.00001) out[i]/=wgt[i];
+  return out.slice(0,Math.round(input.length*factor));
+}
+function resample(input,len){
+  const out=new Float32Array(len), r=(input.length-1)/Math.max(1,len-1);
+  for(let i=0;i<len;i++){const x=i*r,j=Math.floor(x),t=x-j,a=input[j]||0,b=input[j+1]||a;out[i]=a+(b-a)*t;}
+  return out;
+}
+function encodeWav(channels,sampleRate){
+  const n=channels.length,len=channels[0].length,ba=n*2,buf=new ArrayBuffer(44+len*ba),v=new DataView(buf);
+  const s=(o,str)=>{for(let i=0;i<str.length;i++)v.setUint8(o+i,str.charCodeAt(i));};
+  s(0,'RIFF');v.setUint32(4,36+len*ba,true);s(8,'WAVE');s(12,'fmt ');v.setUint32(16,16,true);v.setUint16(20,1,true);v.setUint16(22,n,true);v.setUint32(24,sampleRate,true);v.setUint32(28,sampleRate*ba,true);v.setUint16(32,ba,true);v.setUint16(34,16,true);s(36,'data');v.setUint32(40,len*ba,true);
+  let o=44; for(let i=0;i<len;i++)for(let c=0;c<n;c++){let x=Math.max(-1,Math.min(1,channels[c][i]||0));v.setInt16(o,x<0?x*32768:x*32767,true);o+=2;}
+  return new Blob([buf],{type:'audio/wav'});
+}
+convert.onclick=()=>{
+  if(!audioBuffer)return;
+  convert.disabled=true;download.disabled=true;status('変換中...',20);
+  setTimeout(()=>{
+    try{
+      const ratio=Math.pow(2,+semi.value/12), chans=[];
+      for(let c=0;c<audioBuffer.numberOfChannels;c++){
+        const st=stretch(audioBuffer.getChannelData(c),ratio,quality.value);
+        chans.push(resample(st,audioBuffer.length));
+      }
+      outBlob=encodeWav(chans,audioBuffer.sampleRate);
+      if(outUrl)URL.revokeObjectURL(outUrl);
+      outUrl=URL.createObjectURL(outBlob);
+      player.src=outUrl;download.disabled=false;status('変換完了',100);
+    }catch(e){console.error(e);status('変換失敗。短い音源かFastで試してください。',0);}
+    convert.disabled=false;
+  },80);
+};
+download.onclick=()=>{
+  if(!outBlob)return;
+  const a=document.createElement('a');
+  a.href=outUrl;a.download=fileName+'_pitchflow.wav';a.click();
+};
+</script>
+</body>
+</html>
