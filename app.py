@@ -30,10 +30,13 @@ body{
 }
 .container{
     width:90%;
-    max-width:560px;
+    max-width:620px;
     background:#1f2937;
     padding:26px;
     border-radius:18px;
+}
+h1{
+    margin-top:0;
 }
 input,button{
     width:100%;
@@ -42,6 +45,7 @@ input,button{
     border-radius:10px;
     border:none;
     font-size:16px;
+    box-sizing:border-box;
 }
 button{
     background:#2563eb;
@@ -90,17 +94,72 @@ a{
     font-size:13px;
     line-height:1.6;
 }
+.info{
+    margin-top:14px;
+    padding:14px;
+    background:#111827;
+    border-radius:12px;
+    color:#d1d5db;
+    font-size:14px;
+    line-height:1.7;
+}
+.info strong{
+    color:#ffffff;
+}
+.example{
+    margin-top:12px;
+    padding:12px;
+    background:#0f172a;
+    border-radius:10px;
+    color:#cbd5e1;
+    font-size:13px;
+    line-height:1.7;
+}
+.badge{
+    display:inline-block;
+    padding:4px 8px;
+    margin:4px 4px 0 0;
+    border-radius:999px;
+    background:#374151;
+    color:#e5e7eb;
+    font-size:12px;
+}
 </style>
 </head>
 <body>
 <div class="container">
 <h1>AudioShift HQ</h1>
+
 <p>音源を選択し、移調量を半音単位で入力してください。</p>
-<p class="small">例：1 = 半音上げ / -1 = 半音下げ / 2 = 全音上げ / 0.2 = 微調整</p>
+
+<p class="small">
+例：1 = 半音上げ / -1 = 半音下げ / 2 = 全音上げ / 0.2 = 微調整
+</p>
 
 <input id="audio" type="file" accept="audio/*">
 
 <input id="semitones" type="number" step="0.1" placeholder="移調量 例：2 / -3 / -0.1">
+
+<div id="pitchInfo" class="info">
+<strong>移調量の説明</strong><br>
+1 = 半音 = 100セント<br>
+0.1 = 10セント<br>
+0.2 = 20セント<br><br>
+A4=440Hzを基準にすると、入力した移調量が何Hz相当になるかをここに表示します。
+</div>
+
+<div class="example">
+<strong>目安</strong><br>
+<span class="badge">0.1 = 微調整</span>
+<span class="badge">0.5 = 半音の半分</span>
+<span class="badge">1 = 半音</span>
+<span class="badge">2 = 全音</span>
+<br><br>
+A4=440Hzの場合：<br>
++0.1 → 約442.55Hz<br>
++0.2 → 約445.11Hz<br>
++1 → 約466.16Hz
+</div>
 
 <button id="convertBtn">高品質変換する</button>
 
@@ -119,6 +178,7 @@ const statusBox = document.getElementById("status");
 const bar = document.getElementById("bar");
 const player = document.getElementById("player");
 const downloadLink = document.getElementById("downloadLink");
+const pitchInfo = document.getElementById("pitchInfo");
 
 let resultUrl = null;
 
@@ -126,6 +186,76 @@ function setStatus(text, percent){
     statusBox.textContent = text;
     bar.style.width = percent + "%";
 }
+
+function getPracticalLabel(semitones){
+    const abs = Math.abs(semitones);
+
+    if(abs === 0){
+        return "変化なし";
+    }
+    if(abs < 0.1){
+        return "ごく小さい微調整";
+    }
+    if(abs < 0.3){
+        return "微調整。チューニング補正向き";
+    }
+    if(abs < 0.75){
+        return "かなり分かる微調整";
+    }
+    if(abs < 1.5){
+        return "半音前後の移調。歌いやすさが変わりやすい";
+    }
+    if(abs < 3){
+        return "実用的なキー変更範囲";
+    }
+    if(abs < 6){
+        return "大きめの移調。音質変化が目立つ場合あり";
+    }
+    return "かなり大きい移調。音質劣化が出やすい";
+}
+
+function updatePitchInfo(){
+    const raw = semitonesInput.value;
+
+    if(raw === ""){
+        pitchInfo.innerHTML = `
+            <strong>移調量の説明</strong><br>
+            1 = 半音 = 100セント<br>
+            0.1 = 10セント<br>
+            0.2 = 20セント<br><br>
+            A4=440Hzを基準にすると、入力した移調量が何Hz相当になるかをここに表示します。
+        `;
+        return;
+    }
+
+    const semitones = Number(raw);
+
+    if(Number.isNaN(semitones)){
+        pitchInfo.innerHTML = "<strong>数値を入力してください。</strong>";
+        return;
+    }
+
+    const cents = semitones * 100;
+    const baseHz = 440;
+    const shiftedHz = baseHz * Math.pow(2, semitones / 12);
+    const diffHz = shiftedHz - baseHz;
+    const percent = ((shiftedHz / baseHz) - 1) * 100;
+
+    const sign = semitones > 0 ? "+" : "";
+    const hzSign = diffHz > 0 ? "+" : "";
+    const percentSign = percent > 0 ? "+" : "";
+
+    pitchInfo.innerHTML = `
+        <strong>入力値：${sign}${semitones} 半音</strong><br>
+        セント換算：${sign}${cents.toFixed(1)} セント<br>
+        A4=440Hz換算：約 ${shiftedHz.toFixed(2)} Hz<br>
+        440Hzとの差：${hzSign}${diffHz.toFixed(2)} Hz<br>
+        周波数変化率：${percentSign}${percent.toFixed(2)}%<br>
+        目安：${getPracticalLabel(semitones)}
+    `;
+}
+
+semitonesInput.addEventListener("input", updatePitchInfo);
 
 convertBtn.addEventListener("click", async () => {
     const file = audioInput.files[0];
