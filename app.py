@@ -17,6 +17,10 @@ HTML = """
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>AudioShift HQ</title>
+
+<link rel="icon" type="image/png" href="/static/icon.png">
+<link rel="apple-touch-icon" href="/static/icon.png">
+
 <style>
 body{
     margin:0;
@@ -37,6 +41,19 @@ body{
 }
 h1{
     margin-top:0;
+}
+.app-header{
+    display:flex;
+    align-items:center;
+    gap:14px;
+    margin-bottom:10px;
+}
+.app-icon{
+    width:54px;
+    height:54px;
+    border-radius:14px;
+    object-fit:cover;
+    box-shadow:0 0 18px rgba(56,189,248,.35);
 }
 input,button{
     width:100%;
@@ -128,7 +145,14 @@ a{
 </head>
 <body>
 <div class="container">
-<h1>AudioShift HQ</h1>
+
+<div class="app-header">
+    <img class="app-icon" src="/static/icon.png" alt="AudioShift icon">
+    <div>
+        <h1>AudioShift HQ</h1>
+        <p class="small">高品質移調ツール</p>
+    </div>
+</div>
 
 <p>音源を選択し、移調量を半音単位で入力してください。</p>
 
