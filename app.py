@@ -157,10 +157,11 @@ a{
 <p>音源を選択し、移調量を半音単位で入力してください。</p>
 
 <p class="small">
+対応目安：MP3 / WAV / M4A / AAC / FLAC / OGG / WebM<br>
 例：1 = 半音上げ / -1 = 半音下げ / 2 = 全音上げ / 0.2 = 微調整
 </p>
 
-<input id="audio" type="file" accept="audio/*">
+<input id="audio" type="file" accept=".mp3,.wav,.m4a,.aac,.flac,.ogg,.webm,audio/*">
 
 <input id="semitones" type="number" step="0.1" placeholder="移調量 例：2 / -3 / -0.1">
 
@@ -286,7 +287,7 @@ convertBtn.addEventListener("click", async () => {
     const semitones = semitonesInput.value;
 
     if(!file){
-        setStatus("音源ファイルを選択してください。", 0);
+        setStatus("音源ファイルを選択してください。MP3 / WAV / M4A などに対応しています。", 0);
         return;
     }
 
