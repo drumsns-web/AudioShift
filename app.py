@@ -64,6 +64,10 @@ input,button{
     font-size:16px;
     box-sizing:border-box;
 }
+input[type="range"]{
+    padding:0;
+    accent-color:#22c55e;
+}
 button{
     background:#2563eb;
     color:white;
@@ -141,6 +145,38 @@ a{
     color:#e5e7eb;
     font-size:12px;
 }
+.slider-box{
+    margin-top:14px;
+    padding:14px;
+    background:#111827;
+    border-radius:12px;
+}
+.slider-label{
+    display:flex;
+    justify-content:space-between;
+    color:#cbd5e1;
+    font-size:13px;
+    margin-top:8px;
+}
+.current-value{
+    margin-top:10px;
+    font-size:22px;
+    font-weight:bold;
+    color:#86efac;
+}
+.quick-buttons{
+    display:grid;
+    grid-template-columns:repeat(4, 1fr);
+    gap:8px;
+    margin-top:12px;
+}
+.quick-buttons button{
+    margin-top:0;
+    padding:10px;
+    font-size:13px;
+    background:#374151;
+    color:#e5e7eb;
+}
 </style>
 </head>
 <body>
@@ -158,29 +194,56 @@ a{
 
 <p class="small">
 対応目安：MP3 / WAV / M4A / AAC / FLAC / OGG / WebM<br>
-例：1 = 半音上げ / -1 = 半音下げ / 2 = 全音上げ / 0.2 = 微調整
+例：1 = 半音上げ / -1 = 半音下げ / 2 = 全音上げ / 0.01 = 1セント微調整
 </p>
 
 <input id="audio" type="file" accept=".mp3,.wav,.m4a,.aac,.flac,.ogg,.webm,audio/*">
 
-<input id="semitones" type="number" step="0.1" placeholder="移調量 例：2 / -3 / -0.1">
+<div class="slider-box">
+    <label class="small">移調量</label>
+
+    <input id="semitones" type="number" step="0.01" min="-12" max="12" value="0" placeholder="移調量 例：2 / -3 / 0.01 / -0.25">
+
+    <input id="semitonesSlider" type="range" min="-12" max="12" step="0.01" value="0">
+
+    <div class="slider-label">
+        <span>-12</span>
+        <span>0</span>
+        <span>+12</span>
+    </div>
+
+    <div id="currentValue" class="current-value">現在：0.00 半音 / 0 セント</div>
+
+    <div class="quick-buttons">
+        <button type="button" onclick="setPitch(-1)">-1</button>
+        <button type="button" onclick="setPitch(-0.1)">-0.1</button>
+        <button type="button" onclick="setPitch(0)">0</button>
+        <button type="button" onclick="setPitch(0.1)">+0.1</button>
+        <button type="button" onclick="setPitch(1)">+1</button>
+        <button type="button" onclick="setPitch(2)">+2</button>
+        <button type="button" onclick="adjustPitch(-0.01)">-0.01</button>
+        <button type="button" onclick="adjustPitch(0.01)">+0.01</button>
+    </div>
+</div>
 
 <div id="pitchInfo" class="info">
 <strong>移調量の説明</strong><br>
 1 = 半音 = 100セント<br>
 0.1 = 10セント<br>
-0.2 = 20セント<br><br>
+0.01 = 1セント<br><br>
 A4=440Hzを基準にすると、入力した移調量が何Hz相当になるかをここに表示します。
 </div>
 
 <div class="example">
 <strong>目安</strong><br>
-<span class="badge">0.1 = 微調整</span>
+<span class="badge">0.01 = 1セント</span>
+<span class="badge">0.1 = 10セント</span>
 <span class="badge">0.5 = 半音の半分</span>
 <span class="badge">1 = 半音</span>
 <span class="badge">2 = 全音</span>
 <br><br>
 A4=440Hzの場合：<br>
++0.01 → 約440.25Hz<br>
 +0.1 → 約442.55Hz<br>
 +0.2 → 約445.11Hz<br>
 +1 → 約466.16Hz
@@ -198,6 +261,8 @@ A4=440Hzの場合：<br>
 <script>
 const audioInput = document.getElementById("audio");
 const semitonesInput = document.getElementById("semitones");
+const semitonesSlider = document.getElementById("semitonesSlider");
+const currentValue = document.getElementById("currentValue");
 const convertBtn = document.getElementById("convertBtn");
 const statusBox = document.getElementById("status");
 const bar = document.getElementById("bar");
@@ -212,17 +277,44 @@ function setStatus(text, percent){
     bar.style.width = percent + "%";
 }
 
+function clampPitch(value){
+    const num = Number(value);
+    if(Number.isNaN(num)){
+        return 0;
+    }
+    return Math.max(-12, Math.min(12, num));
+}
+
+function formatPitch(value){
+    return Number(value).toFixed(2);
+}
+
+function setPitch(value){
+    const fixed = formatPitch(clampPitch(value));
+    semitonesInput.value = fixed;
+    semitonesSlider.value = fixed;
+    updatePitchInfo();
+}
+
+function adjustPitch(amount){
+    const current = clampPitch(semitonesInput.value);
+    setPitch(current + amount);
+}
+
 function getPracticalLabel(semitones){
     const abs = Math.abs(semitones);
 
     if(abs === 0){
         return "変化なし";
     }
+    if(abs < 0.03){
+        return "1〜2セント程度。ごく小さいチューニング補正";
+    }
     if(abs < 0.1){
-        return "ごく小さい微調整";
+        return "微細なチューニング補正";
     }
     if(abs < 0.3){
-        return "微調整。チューニング補正向き";
+        return "微調整。音源のピッチ補正向き";
     }
     if(abs < 0.75){
         return "かなり分かる微調整";
@@ -247,9 +339,10 @@ function updatePitchInfo(){
             <strong>移調量の説明</strong><br>
             1 = 半音 = 100セント<br>
             0.1 = 10セント<br>
-            0.2 = 20セント<br><br>
+            0.01 = 1セント<br><br>
             A4=440Hzを基準にすると、入力した移調量が何Hz相当になるかをここに表示します。
         `;
+        currentValue.textContent = "現在：未入力";
         return;
     }
 
@@ -257,30 +350,49 @@ function updatePitchInfo(){
 
     if(Number.isNaN(semitones)){
         pitchInfo.innerHTML = "<strong>数値を入力してください。</strong>";
+        currentValue.textContent = "現在：数値エラー";
         return;
     }
 
-    const cents = semitones * 100;
+    const safeSemitones = clampPitch(semitones);
+    const cents = safeSemitones * 100;
     const baseHz = 440;
-    const shiftedHz = baseHz * Math.pow(2, semitones / 12);
+    const shiftedHz = baseHz * Math.pow(2, safeSemitones / 12);
     const diffHz = shiftedHz - baseHz;
     const percent = ((shiftedHz / baseHz) - 1) * 100;
 
-    const sign = semitones > 0 ? "+" : "";
+    const sign = safeSemitones > 0 ? "+" : "";
     const hzSign = diffHz > 0 ? "+" : "";
     const percentSign = percent > 0 ? "+" : "";
 
+    currentValue.textContent = `現在：${sign}${safeSemitones.toFixed(2)} 半音 / ${sign}${cents.toFixed(0)} セント`;
+
     pitchInfo.innerHTML = `
-        <strong>入力値：${sign}${semitones} 半音</strong><br>
+        <strong>入力値：${sign}${safeSemitones.toFixed(2)} 半音</strong><br>
         セント換算：${sign}${cents.toFixed(1)} セント<br>
         A4=440Hz換算：約 ${shiftedHz.toFixed(2)} Hz<br>
         440Hzとの差：${hzSign}${diffHz.toFixed(2)} Hz<br>
         周波数変化率：${percentSign}${percent.toFixed(2)}%<br>
-        目安：${getPracticalLabel(semitones)}
+        目安：${getPracticalLabel(safeSemitones)}
     `;
 }
 
-semitonesInput.addEventListener("input", updatePitchInfo);
+semitonesInput.addEventListener("input", () => {
+    const value = clampPitch(semitonesInput.value);
+    semitonesSlider.value = value;
+    updatePitchInfo();
+});
+
+semitonesInput.addEventListener("blur", () => {
+    setPitch(semitonesInput.value);
+});
+
+semitonesSlider.addEventListener("input", () => {
+    semitonesInput.value = formatPitch(semitonesSlider.value);
+    updatePitchInfo();
+});
+
+updatePitchInfo();
 
 convertBtn.addEventListener("click", async () => {
     const file = audioInput.files[0];
@@ -292,7 +404,7 @@ convertBtn.addEventListener("click", async () => {
     }
 
     if(semitones === ""){
-        setStatus("移調量を入力してください。例：2 / -3 / -0.1", 0);
+        setStatus("移調量を入力してください。例：2 / -3 / -0.01", 0);
         return;
     }
 
@@ -365,6 +477,14 @@ def shift_audio():
         file = request.files["audio"]
         semitones = request.form.get("semitones", "0")
 
+        try:
+            semitone_value = float(semitones)
+        except ValueError:
+            return jsonify({"error": "移調量が数値ではありません。"}), 400
+
+        if semitone_value < -12 or semitone_value > 12:
+            return jsonify({"error": "移調量は -12〜+12 の範囲で入力してください。"}), 400
+
         uid = str(uuid.uuid4())
 
         input_path = UPLOAD_DIR / f"{uid}_input"
@@ -387,7 +507,7 @@ def shift_audio():
         subprocess.run([
             "rubberband",
             "-3",
-            "-p", semitones,
+            "-p", str(semitone_value),
             str(wav_path),
             str(output_path)
         ], check=True)
