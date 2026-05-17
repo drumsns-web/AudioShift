@@ -16,7 +16,7 @@ HTML = """
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>AudioShift</title>
+<title>AudioShift HQ</title>
 <style>
 body{
     margin:0;
@@ -80,20 +80,29 @@ audio{
     margin-top:16px;
 }
 a{
+    display:block;
+    margin-top:14px;
     color:#93c5fd;
+    font-weight:bold;
+}
+.small{
+    color:#9ca3af;
+    font-size:13px;
+    line-height:1.6;
 }
 </style>
 </head>
 <body>
 <div class="container">
-<h1>AudioShift</h1>
+<h1>AudioShift HQ</h1>
 <p>音源を選択し、移調量を半音単位で入力してください。</p>
+<p class="small">例：1 = 半音上げ / -1 = 半音下げ / 2 = 全音上げ / 0.2 = 微調整</p>
 
 <input id="audio" type="file" accept="audio/*">
 
 <input id="semitones" type="number" step="0.1" placeholder="移調量 例：2 / -3 / -0.1">
 
-<button id="convertBtn">変換する</button>
+<button id="convertBtn">高品質変換する</button>
 
 <div class="progress"><div id="bar" class="bar"></div></div>
 <div id="status" class="status">音源を選択してください。</div>
@@ -156,7 +165,7 @@ convertBtn.addEventListener("click", async () => {
             body: formData
         });
 
-        setStatus("変換処理中...\\nRubber Bandで移調しています。", 65);
+        setStatus("高品質変換中...\\nRubber Band R3モードで移調しています。", 65);
 
         if(!response.ok){
             const err = await response.json();
@@ -171,7 +180,7 @@ convertBtn.addEventListener("click", async () => {
 
         const baseName = file.name.replace(/\\.[^/.]+$/, "");
         downloadLink.href = resultUrl;
-        downloadLink.download = baseName + "_shift_" + semitones + ".wav";
+        downloadLink.download = baseName + "_shift_" + semitones + "_hq.wav";
         downloadLink.style.display = "block";
 
         setStatus("変換完了しました。\\n下のプレイヤーで再生確認できます。\\n必要ならWAVをダウンロードしてください。", 100);
@@ -180,7 +189,7 @@ convertBtn.addEventListener("click", async () => {
         setStatus("エラー：\\n" + error.message, 0);
     }finally{
         convertBtn.disabled = false;
-        convertBtn.textContent = "変換する";
+        convertBtn.textContent = "高品質変換する";
     }
 });
 </script>
@@ -205,7 +214,7 @@ def shift_audio():
 
         input_path = UPLOAD_DIR / f"{uid}_input"
         wav_path = UPLOAD_DIR / f"{uid}.wav"
-        output_path = OUTPUT_DIR / f"{uid}_shifted.wav"
+        output_path = OUTPUT_DIR / f"{uid}_shifted_hq.wav"
 
         file.save(input_path)
 
@@ -213,13 +222,16 @@ def shift_audio():
             "ffmpeg",
             "-y",
             "-i", str(input_path),
+            "-vn",
             "-ar", "44100",
             "-ac", "2",
+            "-acodec", "pcm_s16le",
             str(wav_path)
         ], check=True)
 
         subprocess.run([
             "rubberband",
+            "-3",
             "-p", semitones,
             str(wav_path),
             str(output_path)
@@ -227,7 +239,7 @@ def shift_audio():
 
         return send_file(output_path, mimetype="audio/wav", as_attachment=False)
 
-    except subprocess.CalledProcessError as e:
+    except subprocess.CalledProcessError:
         return jsonify({"error": "音声変換処理に失敗しました。音源形式または移調量を確認してください。"}), 500
 
     except Exception as e:
