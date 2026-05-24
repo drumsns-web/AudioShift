@@ -1156,4 +1156,111 @@ convertBtn.addEventListener("click", async () => {
         const ext = (outFormat === "mp3") ? "mp3" : "wav";
         downloadLink.href = resultUrl;
         downloadLink.download = baseName + "_shift_" + semitones + "_hq." + ext;
-        downloadLink.textConte
+        downloadLink.textContent = "⬇ 変換後" + ext.toUpperCase() + "をダウンロード";
+        downloadLink.style.display = "block";
+
+        setStatus("変換完了しました。\\n下のプレイヤーで再生確認できます。\\n必要なら" + ext.toUpperCase() + "をダウンロードしてください。", 100);
+
+        // 変換所要時間を専用エリアに表示（音源の長さと混同しないよう明記）
+        const doneBox = document.getElementById("elapsedResult");
+        doneBox.style.display = "block";
+        doneBox.innerHTML = "⏱ <strong>変換作業にかかった時間</strong>：" + fmtElapsed(lastElapsedSec) +
+            "<br><span style=\\"font-size:11px;color:var(--dim)\\">※音源の再生時間ではなく、移調処理が完了するまでの所要時間です</span>";
+
+        fireCompletionNotify();
+
+    }catch(error){
+        stopElapsed();
+        setStatus("エラー：\\n" + error.message, 0);
+    }finally{
+        stopElapsed();
+        convertBtn.disabled = false;
+        convertBtn.textContent = "⚡ 高品質変換する";
+    }
+});
+</script>
+</body>
+</html>
+
+"""
+
+@app.route("/")
+def home():
+    return HTML
+
+@app.route("/shift", methods=["POST"])
+def shift_audio():
+    try:
+        if "audio" not in request.files:
+            return jsonify({"error": "音源ファイルがありません。"}), 400
+
+        file = request.files["audio"]
+        semitones = request.form.get("semitones", "0")
+        out_format = request.form.get("format", "wav")
+        mp3_bitrate = request.form.get("bitrate", "320")
+
+        try:
+            semitone_value = float(semitones)
+        except ValueError:
+            return jsonify({"error": "移調量が数値ではありません。"}), 400
+
+        if semitone_value < -12 or semitone_value > 12:
+            return jsonify({"error": "移調量は -12〜+12 の範囲で入力してください。"}), 400
+
+        # 形式・ビットレートの安全確認
+        if out_format not in ("wav", "mp3"):
+            out_format = "wav"
+        if mp3_bitrate not in ("128", "192", "320"):
+            mp3_bitrate = "320"
+
+        uid = str(uuid.uuid4())
+
+        input_path = UPLOAD_DIR / f"{uid}_input"
+        wav_path = UPLOAD_DIR / f"{uid}.wav"
+        output_path = OUTPUT_DIR / f"{uid}_shifted_hq.wav"
+
+        file.save(input_path)
+
+        subprocess.run([
+            "ffmpeg",
+            "-y",
+            "-i", str(input_path),
+            "-vn",
+            "-ar", "44100",
+            "-ac", "2",
+            "-acodec", "pcm_s16le",
+            str(wav_path)
+        ], check=True)
+
+        subprocess.run([
+            "rubberband",
+            "-3",
+            "-p", str(semitone_value),
+            str(wav_path),
+            str(output_path)
+        ], check=True)
+
+        # MP3が指定された場合は、移調後WAVをMP3に変換
+        if out_format == "mp3":
+            mp3_path = OUTPUT_DIR / f"{uid}_shifted_hq.mp3"
+            subprocess.run([
+                "ffmpeg",
+                "-y",
+                "-i", str(output_path),
+                "-vn",
+                "-acodec", "libmp3lame",
+                "-b:a", f"{mp3_bitrate}k",
+                str(mp3_path)
+            ], check=True)
+            return send_file(mp3_path, mimetype="audio/mpeg", as_attachment=False)
+
+        return send_file(output_path, mimetype="audio/wav", as_attachment=False)
+
+    except subprocess.CalledProcessError:
+        return jsonify({"error": "音声変換処理に失敗しました。音源形式または移調量を確認してください。"}), 500
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=8000)
