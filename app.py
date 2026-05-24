@@ -421,12 +421,12 @@ a#downloadLink:hover{
     <div id="currentValue" class="current-value">現在：0.00 半音 / 0 セント</div>
 
     <div class="quick-buttons">
-        <button type="button" onclick="setPitch(-1)">-1</button>
-        <button type="button" onclick="setPitch(-0.1)">-0.1</button>
+        <button type="button" onclick="adjustPitch(-1)">-1</button>
+        <button type="button" onclick="adjustPitch(-0.1)">-0.1</button>
         <button type="button" onclick="setPitch(0)">0</button>
-        <button type="button" onclick="setPitch(0.1)">+0.1</button>
-        <button type="button" onclick="setPitch(1)">+1</button>
-        <button type="button" onclick="setPitch(2)">+2</button>
+        <button type="button" onclick="adjustPitch(0.1)">+0.1</button>
+        <button type="button" onclick="adjustPitch(1)">+1</button>
+        <button type="button" onclick="adjustPitch(2)">+2</button>
         <button type="button" onclick="adjustPitch(-0.01)">-0.01</button>
         <button type="button" onclick="adjustPitch(0.01)">+0.01</button>
     </div>
