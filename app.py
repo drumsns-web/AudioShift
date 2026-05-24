@@ -436,6 +436,27 @@ input[type="range"]::-moz-range-thumb{
 }
 .elapsed-result strong{color:var(--green-bright)}
 
+/* ── 完了バナー（画面上部に固定）── */
+.done-banner{
+    position:fixed;
+    top:0;
+    left:0;
+    right:0;
+    z-index:9999;
+    padding:16px;
+    text-align:center;
+    font-family:'Orbitron',sans-serif;
+    font-weight:700;
+    font-size:16px;
+    color:#04101f;
+    background:linear-gradient(135deg, var(--green-bright), var(--green));
+    box-shadow:0 4px 24px rgba(34,197,94,.5);
+    cursor:pointer;
+    animation:bannerDrop .5s cubic-bezier(.16,1,.3,1), bannerPulse 1.5s ease-in-out infinite .5s;
+}
+@keyframes bannerDrop{from{transform:translateY(-100%)}to{transform:translateY(0)}}
+@keyframes bannerPulse{0%,100%{box-shadow:0 4px 24px rgba(34,197,94,.5)}50%{box-shadow:0 4px 36px rgba(34,197,94,.85)}}
+
 /* ── 情報ボックス ── */
 .info{
     margin-top:16px;
@@ -545,6 +566,10 @@ a#downloadLink:hover{
 </head>
 <body>
 <div class="container">
+
+<div id="doneBanner" class="done-banner" style="display:none;" onclick="hideDoneBanner()">
+    ✅ 変換が完了しました！　<span style="opacity:.8;font-size:13px">タップで閉じる</span>
+</div>
 
 <div class="app-header">
     <img class="app-icon" src="/static/icon.png" alt="AudioShift icon">
@@ -668,8 +693,9 @@ A4=440Hzの場合：<br>
         </div>
     </div>
     <div style="font-size:11px;color:var(--dim);line-height:1.6;margin-top:10px">
-        💡 変換完了時に通知音・振動・画面表示でお知らせします。<br>
-        ※マナーモード中は音が鳴らない場合があります（端末の設定によります）。その場合も画面表示でお知らせします。
+        💡 変換完了時に、通知音・振動・画面表示・ブラウザ通知でお知らせします。<br>
+        ※変換ボタンを押すと「通知の許可」を聞かれることがあります。許可すると、別の画面を見ていても完了通知が届きやすくなります。<br>
+        ※iPhoneは仕様上、振動は動作しません。また画面を長時間離れていると音が鳴らないことがありますが、その場合も画面に戻れば完了表示でお知らせします。
     </div>
 </div>
 
@@ -718,6 +744,33 @@ let vibeEnabled = true;
 let notifyAudioCtx = null;
 let titleBlinkTimer = null;
 let origTitle = document.title;
+let notifyPermission = "default"; // ブラウザ通知の許可状態
+
+// 変換ボタンを押した時に呼ぶ：AudioContextを起こして音を鳴らす権利を確保
+function primeNotifications(){
+    // AudioContextを作成＆resume（iOSはユーザー操作直後でないと音が出せないため）
+    try{
+        if(!notifyAudioCtx){
+            notifyAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        }
+        if(notifyAudioCtx.state === "suspended"){ notifyAudioCtx.resume(); }
+        // 無音を一瞬鳴らしてオーディオを「起こす」
+        const osc = notifyAudioCtx.createOscillator();
+        const gain = notifyAudioCtx.createGain();
+        gain.gain.value = 0.0001;
+        osc.connect(gain); gain.connect(notifyAudioCtx.destination);
+        osc.start(); osc.stop(notifyAudioCtx.currentTime + 0.02);
+    }catch(e){ console.warn("audio prime failed:", e); }
+
+    // ブラウザ通知の許可をリクエスト（まだの場合）
+    try{
+        if("Notification" in window && Notification.permission === "default"){
+            Notification.requestPermission().then(p => { notifyPermission = p; });
+        }else if("Notification" in window){
+            notifyPermission = Notification.permission;
+        }
+    }catch(e){ console.warn("notification permission failed:", e); }
+}
 
 function setSound(on){
     soundEnabled = on;
@@ -781,14 +834,43 @@ function playNotifySound(type){
     }
 }
 
-// 完了通知（音・バイブ・画面）
+// 完了通知（音・バイブ・ブラウザ通知・画面）
 function fireCompletionNotify(){
-    // 音
-    if(soundEnabled){ playNotifySound(soundType); }
-    // バイブ（対応端末のみ）
+    // 音（AudioContextを復帰させてから鳴らす）
+    if(soundEnabled){
+        try{ if(notifyAudioCtx && notifyAudioCtx.state === "suspended"){ notifyAudioCtx.resume(); } }catch(e){}
+        playNotifySound(soundType);
+    }
+    // バイブ（対応端末のみ。iOS Safariは非対応）
     if(vibeEnabled && navigator.vibrate){ navigator.vibrate([100, 50, 100, 50, 200]); }
+    // ブラウザ通知（許可があれば。画面を裏に回していても出る可能性）
+    try{
+        if("Notification" in window && Notification.permission === "granted"){
+            const n = new Notification("AudioShift HQ", {
+                body: "✅ 変換が完了しました！",
+                tag: "audioshift-done"
+            });
+            n.onclick = () => { window.focus(); n.close(); };
+        }
+    }catch(e){ console.warn("notification failed:", e); }
+    // 画面内バナー
+    showDoneBanner();
     // タブのタイトルを点滅
     startTitleBlink();
+}
+
+// 画面内の完了バナー（戻ってきた時に確実に気づける）
+function showDoneBanner(){
+    const banner = document.getElementById("doneBanner");
+    if(!banner) return;
+    banner.style.display = "block";
+    banner.classList.add("show");
+}
+function hideDoneBanner(){
+    const banner = document.getElementById("doneBanner");
+    if(!banner) return;
+    banner.style.display = "none";
+    banner.classList.remove("show");
 }
 
 function startTitleBlink(){
@@ -1027,9 +1109,13 @@ convertBtn.addEventListener("click", async () => {
         resultUrl = null;
     }
 
+    // 通知の準備（ユーザー操作直後にAudioContext起動＆通知許可リクエスト）
+    primeNotifications();
+
     player.style.display = "none";
     downloadLink.style.display = "none";
     document.getElementById("elapsedResult").style.display = "none";
+    hideDoneBanner();
 
     convertBtn.disabled = true;
     convertBtn.textContent = "変換中...";
@@ -1070,111 +1156,4 @@ convertBtn.addEventListener("click", async () => {
         const ext = (outFormat === "mp3") ? "mp3" : "wav";
         downloadLink.href = resultUrl;
         downloadLink.download = baseName + "_shift_" + semitones + "_hq." + ext;
-        downloadLink.textContent = "⬇ 変換後" + ext.toUpperCase() + "をダウンロード";
-        downloadLink.style.display = "block";
-
-        setStatus("変換完了しました。\\n下のプレイヤーで再生確認できます。\\n必要なら" + ext.toUpperCase() + "をダウンロードしてください。", 100);
-
-        // 変換所要時間を専用エリアに表示（音源の長さと混同しないよう明記）
-        const doneBox = document.getElementById("elapsedResult");
-        doneBox.style.display = "block";
-        doneBox.innerHTML = "⏱ <strong>変換作業にかかった時間</strong>：" + fmtElapsed(lastElapsedSec) +
-            "<br><span style=\\"font-size:11px;color:var(--dim)\\">※音源の再生時間ではなく、移調処理が完了するまでの所要時間です</span>";
-
-        fireCompletionNotify();
-
-    }catch(error){
-        stopElapsed();
-        setStatus("エラー：\\n" + error.message, 0);
-    }finally{
-        stopElapsed();
-        convertBtn.disabled = false;
-        convertBtn.textContent = "⚡ 高品質変換する";
-    }
-});
-</script>
-</body>
-</html>
-
-"""
-
-@app.route("/")
-def home():
-    return HTML
-
-@app.route("/shift", methods=["POST"])
-def shift_audio():
-    try:
-        if "audio" not in request.files:
-            return jsonify({"error": "音源ファイルがありません。"}), 400
-
-        file = request.files["audio"]
-        semitones = request.form.get("semitones", "0")
-        out_format = request.form.get("format", "wav")
-        mp3_bitrate = request.form.get("bitrate", "320")
-
-        try:
-            semitone_value = float(semitones)
-        except ValueError:
-            return jsonify({"error": "移調量が数値ではありません。"}), 400
-
-        if semitone_value < -12 or semitone_value > 12:
-            return jsonify({"error": "移調量は -12〜+12 の範囲で入力してください。"}), 400
-
-        # 形式・ビットレートの安全確認
-        if out_format not in ("wav", "mp3"):
-            out_format = "wav"
-        if mp3_bitrate not in ("128", "192", "320"):
-            mp3_bitrate = "320"
-
-        uid = str(uuid.uuid4())
-
-        input_path = UPLOAD_DIR / f"{uid}_input"
-        wav_path = UPLOAD_DIR / f"{uid}.wav"
-        output_path = OUTPUT_DIR / f"{uid}_shifted_hq.wav"
-
-        file.save(input_path)
-
-        subprocess.run([
-            "ffmpeg",
-            "-y",
-            "-i", str(input_path),
-            "-vn",
-            "-ar", "44100",
-            "-ac", "2",
-            "-acodec", "pcm_s16le",
-            str(wav_path)
-        ], check=True)
-
-        subprocess.run([
-            "rubberband",
-            "-3",
-            "-p", str(semitone_value),
-            str(wav_path),
-            str(output_path)
-        ], check=True)
-
-        # MP3が指定された場合は、移調後WAVをMP3に変換
-        if out_format == "mp3":
-            mp3_path = OUTPUT_DIR / f"{uid}_shifted_hq.mp3"
-            subprocess.run([
-                "ffmpeg",
-                "-y",
-                "-i", str(output_path),
-                "-vn",
-                "-acodec", "libmp3lame",
-                "-b:a", f"{mp3_bitrate}k",
-                str(mp3_path)
-            ], check=True)
-            return send_file(mp3_path, mimetype="audio/mpeg", as_attachment=False)
-
-        return send_file(output_path, mimetype="audio/wav", as_attachment=False)
-
-    except subprocess.CalledProcessError:
-        return jsonify({"error": "音声変換処理に失敗しました。音源形式または移調量を確認してください。"}), 500
-
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=8000)
+        downloadLink.textConte
