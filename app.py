@@ -326,6 +326,85 @@ input[type="range"]::-moz-range-thumb{
     box-shadow:0 0 14px rgba(34,211,238,.2);
 }
 
+/* ── 通知設定 ── */
+.notify-row{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    margin-top:10px;
+}
+.notify-label{
+    font-size:14px;
+    color:var(--text);
+    font-weight:500;
+}
+.notify-toggle{
+    display:flex;
+    gap:6px;
+}
+.ntf-btn{
+    padding:8px 18px;
+    font-size:13px;
+    font-family:'Orbitron',sans-serif;
+    font-weight:700;
+    background:var(--panel-light);
+    color:var(--dim);
+    border:1.5px solid var(--line);
+    border-radius:8px;
+    cursor:pointer;
+    transition:all .18s;
+}
+.ntf-btn:hover{border-color:var(--cyan);color:var(--cyan)}
+.ntf-btn:active{transform:scale(.95)}
+.ntf-btn.active{
+    border-color:var(--cyan);
+    color:var(--cyan);
+    background:rgba(34,211,238,.12);
+    box-shadow:0 0 12px rgba(34,211,238,.2);
+}
+.sound-type-buttons{
+    display:grid;
+    grid-template-columns:repeat(4, 1fr);
+    gap:8px;
+    margin-top:10px;
+}
+.snd-btn{
+    padding:10px 4px;
+    font-size:13px;
+    font-family:'Orbitron',sans-serif;
+    font-weight:700;
+    background:var(--panel-light);
+    color:var(--dim);
+    border:1.5px solid var(--line);
+    border-radius:10px;
+    cursor:pointer;
+    transition:all .18s;
+    line-height:1.5;
+}
+.snd-btn span{font-size:10px;font-weight:400;opacity:.7}
+.snd-btn:hover{border-color:var(--cyan);color:var(--cyan)}
+.snd-btn:active{transform:scale(.95)}
+.snd-btn.active{
+    border-color:var(--cyan);
+    color:var(--cyan);
+    background:rgba(34,211,238,.12);
+    box-shadow:0 0 14px rgba(34,211,238,.2);
+}
+
+/* ── 変換時間の目安 ── */
+.time-guide{
+    margin-top:16px;
+    padding:14px 16px;
+    background:rgba(34,211,238,.06);
+    border:1px solid var(--line);
+    border-left:3px solid var(--cyan);
+    border-radius:12px;
+    color:#cdd6ee;
+    font-size:13px;
+    line-height:1.8;
+}
+.time-guide strong{color:var(--cyan-bright)}
+
 /* ── 情報ボックス ── */
 .info{
     margin-top:16px;
@@ -534,6 +613,40 @@ A4=440Hzの場合：<br>
     </div>
 </div>
 
+<div class="format-box">
+    <label class="field-label">完了通知 / Notification</label>
+    <div class="notify-row">
+        <span class="notify-label">🔔 通知音</span>
+        <div class="notify-toggle">
+            <button type="button" id="soundOn" class="ntf-btn active" onclick="setSound(true)">ON</button>
+            <button type="button" id="soundOff" class="ntf-btn" onclick="setSound(false)">OFF</button>
+        </div>
+    </div>
+    <div id="soundTypeRow" class="sound-type-buttons">
+        <button type="button" id="snd_chime" class="snd-btn active" onclick="setSoundType('chime')">チャイム<br><span>♪ 試聴</span></button>
+        <button type="button" id="snd_beep" class="snd-btn" onclick="setSoundType('beep')">ビープ<br><span>♪ 試聴</span></button>
+        <button type="button" id="snd_bell" class="snd-btn" onclick="setSoundType('bell')">ベル<br><span>♪ 試聴</span></button>
+        <button type="button" id="snd_arp" class="snd-btn" onclick="setSoundType('arp')">アルペジオ<br><span>♪ 試聴</span></button>
+    </div>
+    <div class="notify-row" style="margin-top:12px">
+        <span class="notify-label">📳 バイブ</span>
+        <div class="notify-toggle">
+            <button type="button" id="vibeOn" class="ntf-btn active" onclick="setVibe(true)">ON</button>
+            <button type="button" id="vibeOff" class="ntf-btn" onclick="setVibe(false)">OFF</button>
+        </div>
+    </div>
+    <div style="font-size:11px;color:var(--dim);line-height:1.6;margin-top:10px">
+        💡 変換完了時に通知音・振動・画面表示でお知らせします。<br>
+        ※マナーモード中は音が鳴らない場合があります（端末の設定によります）。その場合も画面表示でお知らせします。
+    </div>
+</div>
+
+<div class="time-guide">
+    ⏱ <strong>変換時間の目安</strong><br>
+    5分程度の曲で <strong>およそ6〜8分</strong> かかります。曲が長いほど時間がかかります。<br>
+    <span style="color:var(--dim)">変換中は他の作業をしていてOK。完了時に通知音・画面表示でお知らせします。</span>
+</div>
+
 <button id="convertBtn">⚡ 高品質変換する</button>
 
 <div class="progress"><div id="bar" class="bar"></div></div>
@@ -561,6 +674,133 @@ const fileSub = document.getElementById("fileSub");
 let resultUrl = null;
 let outFormat = "wav";
 let mp3Bitrate = "320";
+
+// ─── 通知設定 ───
+let soundEnabled = true;
+let soundType = "chime";
+let vibeEnabled = true;
+let notifyAudioCtx = null;
+let titleBlinkTimer = null;
+let origTitle = document.title;
+
+function setSound(on){
+    soundEnabled = on;
+    document.getElementById("soundOn").classList.toggle("active", on);
+    document.getElementById("soundOff").classList.toggle("active", !on);
+    document.getElementById("soundTypeRow").style.display = on ? "grid" : "none";
+}
+function setSoundType(type){
+    soundType = type;
+    ["chime","beep","bell","arp"].forEach(t => {
+        document.getElementById("snd_" + t).classList.toggle("active", t === type);
+    });
+    // 選んだ音を試聴
+    playNotifySound(type);
+}
+function setVibe(on){
+    vibeEnabled = on;
+    document.getElementById("vibeOn").classList.toggle("active", on);
+    document.getElementById("vibeOff").classList.toggle("active", !on);
+    if(on && navigator.vibrate){ navigator.vibrate(60); }
+}
+
+// Web Audio APIで通知音を鳴らす
+function playNotifySound(type){
+    try{
+        if(!notifyAudioCtx){
+            notifyAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        }
+        const ctx = notifyAudioCtx;
+        if(ctx.state === "suspended"){ ctx.resume(); }
+        const now = ctx.currentTime;
+
+        // 音色ごとの音符パターン [周波数, 開始秒, 長さ秒]
+        let notes;
+        if(type === "beep"){
+            notes = [[880, 0, 0.12], [880, 0.18, 0.12]];
+        }else if(type === "bell"){
+            notes = [[1318.5, 0, 0.8]];
+        }else if(type === "arp"){
+            notes = [[523.25,0,0.12],[659.25,0.12,0.12],[783.99,0.24,0.12],[1046.5,0.36,0.4]];
+        }else{ // chime（デフォルト）
+            notes = [[783.99, 0, 0.3], [1046.5, 0.18, 0.5]];
+        }
+
+        notes.forEach(([freq, start, dur]) => {
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = (type === "bell") ? "triangle" : "sine";
+            osc.frequency.value = freq;
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            const t0 = now + start;
+            gain.gain.setValueAtTime(0, t0);
+            gain.gain.linearRampToValueAtTime(0.35, t0 + 0.02);
+            gain.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+            osc.start(t0);
+            osc.stop(t0 + dur + 0.05);
+        });
+    }catch(e){
+        console.warn("notify sound failed:", e);
+    }
+}
+
+// 完了通知（音・バイブ・画面）
+function fireCompletionNotify(){
+    // 音
+    if(soundEnabled){ playNotifySound(soundType); }
+    // バイブ（対応端末のみ）
+    if(vibeEnabled && navigator.vibrate){ navigator.vibrate([100, 50, 100, 50, 200]); }
+    // タブのタイトルを点滅
+    startTitleBlink();
+}
+
+function startTitleBlink(){
+    stopTitleBlink();
+    let on = true;
+    document.title = "✅ 変換完了！";
+    titleBlinkTimer = setInterval(() => {
+        document.title = on ? origTitle : "✅ 変換完了！";
+        on = !on;
+    }, 800);
+    // 画面に戻ってきたら点滅を止める
+    const stopOnFocus = () => { stopTitleBlink(); window.removeEventListener("focus", stopOnFocus); document.removeEventListener("visibilitychange", visHandler); };
+    const visHandler = () => { if(!document.hidden){ stopOnFocus(); } };
+    window.addEventListener("focus", stopOnFocus);
+    document.addEventListener("visibilitychange", visHandler);
+    // 念のため30秒で自動停止
+    setTimeout(stopTitleBlink, 30000);
+}
+function stopTitleBlink(){
+    if(titleBlinkTimer){ clearInterval(titleBlinkTimer); titleBlinkTimer = null; }
+    document.title = origTitle;
+}
+
+// ─── 経過時間カウンター ───
+let elapsedTimer = null;
+let elapsedStart = 0;
+
+function startElapsed(){
+    stopElapsed();
+    elapsedStart = Date.now();
+    elapsedTimer = setInterval(updateElapsed, 1000);
+    updateElapsed();
+}
+function updateElapsed(){
+    const sec = Math.floor((Date.now() - elapsedStart) / 1000);
+    const m = Math.floor(sec / 60);
+    const s = sec % 60;
+    const timeStr = m + "分" + s.toString().padStart(2, "0") + "秒";
+    setStatus(
+        "🎚 高品質変換中...（Rubber Band R3モード）\\n" +
+        "経過時間：" + timeStr + "\\n" +
+        "目安：5分の曲でおよそ6〜8分。このまま他の作業をしていてOKです。",
+        70
+    );
+}
+function stopElapsed(){
+    if(elapsedTimer){ clearInterval(elapsedTimer); elapsedTimer = null; }
+}
 
 function setFormat(fmt){
     outFormat = fmt;
@@ -745,14 +985,18 @@ convertBtn.addEventListener("click", async () => {
     formData.append("bitrate", mp3Bitrate);
 
     try{
-        setStatus("サーバーへアップロード中...\\n曲が長い場合は少し時間がかかります。", 30);
+        setStatus("サーバーへアップロード中...\\n曲が長い場合は少し時間がかかります。\\n目安：5分の曲でおよそ6〜8分。", 30);
+
+        // 経過時間カウンター開始（変換が終わるまで動き続ける）
+        startElapsed();
 
         const response = await fetch("/shift", {
             method: "POST",
             body: formData
         });
 
-        setStatus("高品質変換中...\\nRubber Band R3モードで移調しています。", 65);
+        // 変換終了。カウンター停止
+        stopElapsed();
 
         if(!response.ok){
             const err = await response.json();
@@ -774,9 +1018,13 @@ convertBtn.addEventListener("click", async () => {
 
         setStatus("変換完了しました。\\n下のプレイヤーで再生確認できます。\\n必要なら" + ext.toUpperCase() + "をダウンロードしてください。", 100);
 
+        fireCompletionNotify();
+
     }catch(error){
+        stopElapsed();
         setStatus("エラー：\\n" + error.message, 0);
     }finally{
+        stopElapsed();
         convertBtn.disabled = false;
         convertBtn.textContent = "⚡ 高品質変換する";
     }
