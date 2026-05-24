@@ -263,6 +263,69 @@ input[type="range"]::-moz-range-thumb{
 }
 .quick-buttons button:active{transform:scale(.94)}
 
+/* ── 形式選択 ── */
+.format-box{
+    margin-top:16px;
+    padding:18px;
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:16px;
+}
+.format-buttons{
+    display:grid;
+    grid-template-columns:repeat(2, 1fr);
+    gap:8px;
+    margin-top:10px;
+}
+.fmt-btn{
+    padding:14px;
+    font-size:14px;
+    font-family:'Orbitron',sans-serif;
+    font-weight:700;
+    background:var(--panel-light);
+    color:var(--dim);
+    border:1.5px solid var(--line);
+    border-radius:10px;
+    cursor:pointer;
+    transition:all .18s;
+}
+.fmt-btn:hover{border-color:var(--cyan);color:var(--cyan)}
+.fmt-btn:active{transform:scale(.97)}
+.fmt-btn.active{
+    border-color:var(--cyan);
+    color:var(--cyan);
+    background:rgba(34,211,238,.12);
+    box-shadow:0 0 14px rgba(34,211,238,.22);
+}
+.bitrate-buttons{
+    display:grid;
+    grid-template-columns:repeat(3, 1fr);
+    gap:8px;
+    margin-top:10px;
+}
+.br-btn{
+    padding:10px 4px;
+    font-size:14px;
+    font-family:'Orbitron',sans-serif;
+    font-weight:700;
+    background:var(--panel-light);
+    color:var(--dim);
+    border:1.5px solid var(--line);
+    border-radius:10px;
+    cursor:pointer;
+    transition:all .18s;
+    line-height:1.4;
+}
+.br-btn span{font-size:10px;font-weight:400;opacity:.8}
+.br-btn:hover{border-color:var(--cyan);color:var(--cyan)}
+.br-btn:active{transform:scale(.95)}
+.br-btn.active{
+    border-color:var(--cyan);
+    color:var(--cyan);
+    background:rgba(34,211,238,.12);
+    box-shadow:0 0 14px rgba(34,211,238,.2);
+}
+
 /* ── 情報ボックス ── */
 .info{
     margin-top:16px;
@@ -455,13 +518,29 @@ A4=440Hzの場合：<br>
 +1 → 約466.16Hz
 </div>
 
+<div class="format-box">
+    <label class="field-label">保存形式 / Format</label>
+    <div class="format-buttons">
+        <button type="button" id="fmtWav" class="fmt-btn active" onclick="setFormat('wav')">WAV（無劣化）</button>
+        <button type="button" id="fmtMp3" class="fmt-btn" onclick="setFormat('mp3')">MP3（軽量）</button>
+    </div>
+    <div id="bitrateRow" style="display:none">
+        <label class="field-label" style="margin-top:14px;display:block">MP3音質 / Bitrate</label>
+        <div class="bitrate-buttons">
+            <button type="button" id="br320" class="br-btn active" onclick="setBitrate('320')">320k<br><span>高音質</span></button>
+            <button type="button" id="br192" class="br-btn" onclick="setBitrate('192')">192k<br><span>標準</span></button>
+            <button type="button" id="br128" class="br-btn" onclick="setBitrate('128')">128k<br><span>軽量</span></button>
+        </div>
+    </div>
+</div>
+
 <button id="convertBtn">⚡ 高品質変換する</button>
 
 <div class="progress"><div id="bar" class="bar"></div></div>
 <div id="status" class="status">音源を選択してください。</div>
 
 <audio id="player" controls style="display:none;"></audio>
-<a id="downloadLink" style="display:none;" download>⬇ 変換後WAVをダウンロード</a>
+<a id="downloadLink" style="display:none;" download>⬇ 変換後ファイルをダウンロード</a>
 </div>
 
 <script>
@@ -480,6 +559,22 @@ const fileTitle = document.getElementById("fileTitle");
 const fileSub = document.getElementById("fileSub");
 
 let resultUrl = null;
+let outFormat = "wav";
+let mp3Bitrate = "320";
+
+function setFormat(fmt){
+    outFormat = fmt;
+    document.getElementById("fmtWav").classList.toggle("active", fmt === "wav");
+    document.getElementById("fmtMp3").classList.toggle("active", fmt === "mp3");
+    document.getElementById("bitrateRow").style.display = (fmt === "mp3") ? "block" : "none";
+}
+
+function setBitrate(br){
+    mp3Bitrate = br;
+    document.getElementById("br320").classList.toggle("active", br === "320");
+    document.getElementById("br192").classList.toggle("active", br === "192");
+    document.getElementById("br128").classList.toggle("active", br === "128");
+}
 
 function setStatus(text, percent){
     statusBox.textContent = text;
@@ -646,6 +741,8 @@ convertBtn.addEventListener("click", async () => {
     const formData = new FormData();
     formData.append("audio", file);
     formData.append("semitones", semitones);
+    formData.append("format", outFormat);
+    formData.append("bitrate", mp3Bitrate);
 
     try{
         setStatus("サーバーへアップロード中...\\n曲が長い場合は少し時間がかかります。", 30);
@@ -669,11 +766,13 @@ convertBtn.addEventListener("click", async () => {
         player.style.display = "block";
 
         const baseName = file.name.replace(/\\.[^/.]+$/, "");
+        const ext = (outFormat === "mp3") ? "mp3" : "wav";
         downloadLink.href = resultUrl;
-        downloadLink.download = baseName + "_shift_" + semitones + "_hq.wav";
+        downloadLink.download = baseName + "_shift_" + semitones + "_hq." + ext;
+        downloadLink.textContent = "⬇ 変換後" + ext.toUpperCase() + "をダウンロード";
         downloadLink.style.display = "block";
 
-        setStatus("変換完了しました。\\n下のプレイヤーで再生確認できます。\\n必要ならWAVをダウンロードしてください。", 100);
+        setStatus("変換完了しました。\\n下のプレイヤーで再生確認できます。\\n必要なら" + ext.toUpperCase() + "をダウンロードしてください。", 100);
 
     }catch(error){
         setStatus("エラー：\\n" + error.message, 0);
@@ -700,6 +799,8 @@ def shift_audio():
 
         file = request.files["audio"]
         semitones = request.form.get("semitones", "0")
+        out_format = request.form.get("format", "wav")
+        mp3_bitrate = request.form.get("bitrate", "320")
 
         try:
             semitone_value = float(semitones)
@@ -708,6 +809,12 @@ def shift_audio():
 
         if semitone_value < -12 or semitone_value > 12:
             return jsonify({"error": "移調量は -12〜+12 の範囲で入力してください。"}), 400
+
+        # 形式・ビットレートの安全確認
+        if out_format not in ("wav", "mp3"):
+            out_format = "wav"
+        if mp3_bitrate not in ("128", "192", "320"):
+            mp3_bitrate = "320"
 
         uid = str(uuid.uuid4())
 
@@ -735,6 +842,20 @@ def shift_audio():
             str(wav_path),
             str(output_path)
         ], check=True)
+
+        # MP3が指定された場合は、移調後WAVをMP3に変換
+        if out_format == "mp3":
+            mp3_path = OUTPUT_DIR / f"{uid}_shifted_hq.mp3"
+            subprocess.run([
+                "ffmpeg",
+                "-y",
+                "-i", str(output_path),
+                "-vn",
+                "-acodec", "libmp3lame",
+                "-b:a", f"{mp3_bitrate}k",
+                str(mp3_path)
+            ], check=True)
+            return send_file(mp3_path, mimetype="audio/mpeg", as_attachment=False)
 
         return send_file(output_path, mimetype="audio/wav", as_attachment=False)
 
