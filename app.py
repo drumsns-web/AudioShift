@@ -404,6 +404,15 @@ input[type="range"]::-moz-range-thumb{
     line-height:1.8;
 }
 .time-guide strong{color:var(--cyan-bright)}
+.warn-note{
+    display:block;
+    margin-top:8px;
+    padding-top:8px;
+    border-top:1px solid var(--line);
+    color:#fbbf24;
+    font-weight:500;
+    line-height:1.7;
+}
 
 /* ── 情報ボックス ── */
 .info{
@@ -644,7 +653,8 @@ A4=440Hzの場合：<br>
 <div class="time-guide">
     ⏱ <strong>変換時間の目安</strong><br>
     5分程度の曲で <strong>およそ6〜8分</strong> かかります。曲が長いほど時間がかかります。<br>
-    <span style="color:var(--dim)">変換中は他の作業をしていてOK。完了時に通知音・画面表示でお知らせします。</span>
+    <span style="color:var(--dim)">変換中は、他のアプリに切り替えたり画面を消したりしてもOK。完了時に通知音・画面表示でお知らせします。</span><br>
+    <span class="warn-note">⚠️ ただし、この画面を更新（リロード）したりタブを閉じたりすると変換が中止されます。変換が終わるまでこのページは閉じないでください。</span>
 </div>
 
 <button id="convertBtn">⚡ 高品質変換する</button>
@@ -780,11 +790,19 @@ function stopTitleBlink(){
 let elapsedTimer = null;
 let elapsedStart = 0;
 
+// 変換中にページを離脱しようとしたら確認を出す
+function beforeUnloadHandler(e){
+    e.preventDefault();
+    e.returnValue = "変換中です。このページを離れると変換が中止されます。";
+    return e.returnValue;
+}
+
 function startElapsed(){
     stopElapsed();
     elapsedStart = Date.now();
     elapsedTimer = setInterval(updateElapsed, 1000);
     updateElapsed();
+    window.addEventListener("beforeunload", beforeUnloadHandler);
 }
 function updateElapsed(){
     const sec = Math.floor((Date.now() - elapsedStart) / 1000);
@@ -794,12 +812,14 @@ function updateElapsed(){
     setStatus(
         "🎚 高品質変換中...（Rubber Band R3モード）\\n" +
         "経過時間：" + timeStr + "\\n" +
-        "目安：5分の曲でおよそ6〜8分。このまま他の作業をしていてOKです。",
+        "目安：5分の曲でおよそ6〜8分。\\n" +
+        "⚠️ この画面は閉じたり更新したりしないでください（変換が中止されます）。他アプリへの切替や画面オフはOKです。",
         70
     );
 }
 function stopElapsed(){
     if(elapsedTimer){ clearInterval(elapsedTimer); elapsedTimer = null; }
+    window.removeEventListener("beforeunload", beforeUnloadHandler);
 }
 
 function setFormat(fmt){
