@@ -22,161 +22,352 @@ HTML = """
 <link rel="apple-touch-icon" href="/static/icon.png">
 
 <style>
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Outfit:wght@300;400;500;600;700&display=swap');
+
+:root{
+    --bg:#05060d;
+    --panel:#0d1326;
+    --panel-light:#121a35;
+    --line:#1e2a4d;
+    --cyan:#22d3ee;
+    --cyan-bright:#5eead4;
+    --blue:#3b82f6;
+    --green:#22c55e;
+    --green-bright:#86efac;
+    --text:#eaf2ff;
+    --dim:#7d8bb5;
+    --dimmer:#4a5680;
+}
+
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+
 body{
-    margin:0;
-    font-family:system-ui,sans-serif;
-    background:#111827;
-    color:white;
+    font-family:'Outfit',system-ui,sans-serif;
+    background:var(--bg);
+    color:var(--text);
+    min-height:100vh;
     display:flex;
     justify-content:center;
-    align-items:center;
-    min-height:100vh;
+    align-items:flex-start;
+    position:relative;
+    padding:30px 16px;
 }
+body::before{
+    content:'';
+    position:fixed;inset:0;
+    background:
+        radial-gradient(ellipse 80% 50% at 50% -10%, rgba(34,211,238,0.15), transparent 60%),
+        radial-gradient(ellipse 60% 50% at 90% 20%, rgba(59,130,246,0.12), transparent 55%),
+        radial-gradient(ellipse 70% 60% at 10% 90%, rgba(94,234,212,0.08), transparent 60%);
+    pointer-events:none;z-index:0;
+}
+body::after{
+    content:'';
+    position:fixed;inset:0;
+    background-image:
+        linear-gradient(rgba(34,211,238,0.025) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(34,211,238,0.025) 1px, transparent 1px);
+    background-size:44px 44px;
+    mask-image:radial-gradient(ellipse 100% 80% at 50% 30%, #000 30%, transparent 80%);
+    -webkit-mask-image:radial-gradient(ellipse 100% 80% at 50% 30%, #000 30%, transparent 80%);
+    pointer-events:none;z-index:0;
+}
+
 .container{
-    width:90%;
+    position:relative;z-index:1;
+    width:100%;
     max-width:620px;
-    background:#1f2937;
+    background:linear-gradient(180deg, rgba(18,26,53,.7), rgba(13,19,38,.85));
+    border:1px solid var(--line);
     padding:26px;
-    border-radius:18px;
+    border-radius:22px;
+    backdrop-filter:blur(12px);
+    -webkit-backdrop-filter:blur(12px);
+    box-shadow:0 8px 40px rgba(0,0,0,.5), inset 0 1px 0 rgba(255,255,255,.04);
+    animation:fadeUp .6s cubic-bezier(.16,1,.3,1) both;
 }
-h1{
-    margin-top:0;
-}
+
 .app-header{
     display:flex;
     align-items:center;
     gap:14px;
-    margin-bottom:10px;
+    margin-bottom:14px;
 }
 .app-icon{
-    width:54px;
-    height:54px;
-    border-radius:14px;
+    width:58px;height:58px;
+    border-radius:15px;
     object-fit:cover;
-    box-shadow:0 0 18px rgba(56,189,248,.35);
+    box-shadow:0 0 22px rgba(34,211,238,.45);
 }
-input,button{
-    width:100%;
-    margin-top:14px;
-    padding:14px;
-    border-radius:10px;
-    border:none;
-    font-size:16px;
-    box-sizing:border-box;
-}
-input[type="range"]{
-    padding:0;
-    accent-color:#22c55e;
-}
-button{
-    background:#2563eb;
-    color:white;
-    font-weight:bold;
-    cursor:pointer;
-}
-button:disabled{
-    opacity:.55;
-    cursor:not-allowed;
-}
-.status{
-    margin-top:18px;
-    padding:14px;
-    border-radius:10px;
-    background:#111827;
-    color:#cbd5e1;
-    line-height:1.6;
-    white-space:pre-wrap;
-}
-.progress{
-    margin-top:14px;
-    height:12px;
-    background:#374151;
-    border-radius:999px;
-    overflow:hidden;
-}
-.bar{
-    width:0%;
-    height:100%;
-    background:#22c55e;
-    transition:width .3s;
-}
-audio{
-    width:100%;
-    margin-top:16px;
-}
-a{
-    display:block;
-    margin-top:14px;
-    color:#93c5fd;
-    font-weight:bold;
+h1{
+    font-family:'Orbitron',sans-serif;
+    font-weight:900;
+    font-size:28px;
+    letter-spacing:.5px;
+    background:linear-gradient(180deg,#eaf6ff 0%, var(--cyan) 75%, var(--blue) 115%);
+    -webkit-background-clip:text;background-clip:text;
+    -webkit-text-fill-color:transparent;
+    filter:drop-shadow(0 0 16px rgba(34,211,238,.3));
+    line-height:1.1;
 }
 .small{
-    color:#9ca3af;
-    font-size:13px;
-    line-height:1.6;
-}
-.info{
-    margin-top:14px;
-    padding:14px;
-    background:#111827;
-    border-radius:12px;
-    color:#d1d5db;
-    font-size:14px;
-    line-height:1.7;
-}
-.info strong{
-    color:#ffffff;
-}
-.example{
-    margin-top:12px;
-    padding:12px;
-    background:#0f172a;
-    border-radius:10px;
-    color:#cbd5e1;
+    color:var(--dim);
     font-size:13px;
     line-height:1.7;
 }
-.badge{
-    display:inline-block;
-    padding:4px 8px;
-    margin:4px 4px 0 0;
-    border-radius:999px;
-    background:#374151;
-    color:#e5e7eb;
-    font-size:12px;
+.lead{
+    margin:6px 0 4px;
+    font-size:15px;
+    color:var(--text);
 }
+
+/* ── ファイル選択（押せる感を強調）── */
+.file-field{
+    margin-top:16px;
+}
+.file-btn{
+    display:flex;
+    align-items:center;
+    gap:14px;
+    width:100%;
+    padding:18px;
+    border-radius:16px;
+    border:2px dashed var(--line);
+    background:rgba(34,211,238,.02);
+    cursor:pointer;
+    transition:all .25s ease;
+}
+.file-btn:hover{
+    border-color:var(--cyan);
+    background:rgba(34,211,238,.06);
+    transform:translateY(-2px);
+    box-shadow:0 8px 24px rgba(34,211,238,.18);
+}
+.file-btn:active{transform:translateY(0) scale(.99)}
+.file-btn.has-file{
+    border-style:solid;
+    border-color:var(--cyan);
+    background:rgba(34,211,238,.07);
+}
+.file-icon{
+    flex:0 0 auto;
+    width:46px;height:46px;
+    display:grid;place-items:center;
+    border-radius:13px;
+    background:linear-gradient(135deg, var(--cyan), var(--blue));
+    box-shadow:0 4px 16px rgba(34,211,238,.4);
+    transition:transform .25s;
+}
+.file-btn:hover .file-icon{transform:scale(1.08) rotate(-3deg)}
+.file-icon svg{width:24px;height:24px}
+.file-text{flex:1;min-width:0}
+.file-title{font-size:15px;font-weight:600;color:var(--text)}
+.file-sub{font-size:12px;color:var(--dim);margin-top:2px;word-break:break-all}
+#audio{display:none}
+
+/* ── スライダーボックス ── */
 .slider-box{
-    margin-top:14px;
-    padding:14px;
-    background:#111827;
-    border-radius:12px;
+    margin-top:16px;
+    padding:18px;
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:16px;
 }
+.field-label{
+    font-size:12px;color:var(--dim);
+    letter-spacing:1px;text-transform:uppercase;
+    font-weight:500;
+}
+#semitones{
+    width:100%;
+    margin-top:10px;
+    padding:14px;
+    border-radius:12px;
+    border:1.5px solid var(--line);
+    background:var(--panel-light);
+    color:var(--text);
+    font-size:18px;
+    font-family:'Orbitron',sans-serif;
+    font-weight:700;
+    text-align:center;
+    box-sizing:border-box;
+    transition:border-color .2s;
+}
+#semitones:focus{outline:none;border-color:var(--cyan);box-shadow:0 0 0 3px rgba(34,211,238,.15)}
+
+input[type="range"]{
+    width:100%;
+    margin-top:16px;
+    -webkit-appearance:none;appearance:none;
+    height:8px;border-radius:999px;
+    background:linear-gradient(90deg, var(--blue), var(--cyan));
+    outline:none;cursor:pointer;
+    box-shadow:0 0 12px rgba(34,211,238,.3);
+}
+input[type="range"]::-webkit-slider-thumb{
+    -webkit-appearance:none;appearance:none;
+    width:26px;height:26px;border-radius:50%;
+    background:radial-gradient(circle at 35% 35%, #fff, var(--cyan));
+    border:2px solid #fff;
+    box-shadow:0 0 14px var(--cyan), 0 2px 6px rgba(0,0,0,.4);
+    cursor:pointer;
+}
+input[type="range"]::-moz-range-thumb{
+    width:26px;height:26px;border-radius:50%;
+    background:radial-gradient(circle at 35% 35%, #fff, var(--cyan));
+    border:2px solid #fff;
+    box-shadow:0 0 14px var(--cyan);
+    cursor:pointer;
+}
+
 .slider-label{
     display:flex;
     justify-content:space-between;
-    color:#cbd5e1;
-    font-size:13px;
-    margin-top:8px;
+    color:var(--dim);
+    font-size:12px;
+    margin-top:10px;
+    font-family:'Orbitron',sans-serif;
 }
 .current-value{
-    margin-top:10px;
-    font-size:22px;
-    font-weight:bold;
-    color:#86efac;
+    margin-top:14px;
+    font-family:'Orbitron',sans-serif;
+    font-size:20px;
+    font-weight:700;
+    color:var(--green-bright);
+    text-align:center;
+    filter:drop-shadow(0 0 10px rgba(134,239,172,.3));
 }
+
 .quick-buttons{
     display:grid;
     grid-template-columns:repeat(4, 1fr);
     gap:8px;
-    margin-top:12px;
+    margin-top:16px;
 }
 .quick-buttons button{
-    margin-top:0;
-    padding:10px;
+    padding:12px 4px;
     font-size:13px;
-    background:#374151;
-    color:#e5e7eb;
+    font-family:'Orbitron',sans-serif;
+    font-weight:700;
+    background:var(--panel-light);
+    color:var(--cyan);
+    border:1.5px solid var(--line);
+    border-radius:10px;
+    cursor:pointer;
+    transition:all .15s;
 }
+.quick-buttons button:hover{
+    border-color:var(--cyan);
+    background:rgba(34,211,238,.12);
+    box-shadow:0 0 14px rgba(34,211,238,.22);
+}
+.quick-buttons button:active{transform:scale(.94)}
+
+/* ── 情報ボックス ── */
+.info{
+    margin-top:16px;
+    padding:16px;
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:14px;
+    color:#cdd6ee;
+    font-size:14px;
+    line-height:1.8;
+}
+.info strong{color:var(--cyan-bright)}
+.example{
+    margin-top:14px;
+    padding:14px;
+    background:rgba(5,6,13,.6);
+    border:1px solid var(--line);
+    border-radius:12px;
+    color:#cdd6ee;
+    font-size:13px;
+    line-height:1.8;
+}
+.example strong{color:var(--text)}
+.badge{
+    display:inline-block;
+    padding:5px 10px;
+    margin:4px 4px 0 0;
+    border-radius:999px;
+    background:var(--panel-light);
+    border:1px solid var(--line);
+    color:var(--cyan);
+    font-size:12px;
+    font-family:'Orbitron',sans-serif;
+}
+
+/* ── 変換ボタン ── */
+#convertBtn{
+    width:100%;
+    margin-top:18px;
+    padding:17px;
+    border:0;border-radius:14px;
+    font-family:'Orbitron',sans-serif;
+    font-size:16px;font-weight:700;letter-spacing:1px;
+    background:linear-gradient(135deg, var(--cyan) 0%, var(--blue) 100%);
+    color:#04101f;
+    cursor:pointer;
+    box-shadow:0 6px 24px rgba(34,211,238,.35);
+    transition:all .2s;
+}
+#convertBtn:hover:not(:disabled){
+    transform:translateY(-2px);
+    box-shadow:0 10px 32px rgba(34,211,238,.5);
+}
+#convertBtn:active:not(:disabled){transform:translateY(0) scale(.99)}
+#convertBtn:disabled{opacity:.5;cursor:not-allowed}
+
+.progress{
+    margin-top:14px;
+    height:10px;
+    background:var(--bg);
+    border:1px solid var(--line);
+    border-radius:999px;
+    overflow:hidden;
+}
+.bar{
+    width:0%;height:100%;
+    background:linear-gradient(90deg, var(--blue), var(--cyan), var(--cyan-bright));
+    box-shadow:0 0 12px var(--cyan);
+    transition:width .3s;
+}
+.status{
+    margin-top:14px;
+    padding:14px;
+    border-radius:12px;
+    background:var(--panel);
+    border:1px solid var(--line);
+    color:#cdd6ee;
+    line-height:1.7;
+    white-space:pre-wrap;
+    font-size:14px;
+}
+audio{
+    width:100%;
+    margin-top:16px;
+    border-radius:12px;
+}
+a#downloadLink{
+    display:block;
+    margin-top:14px;
+    padding:15px;
+    text-align:center;
+    border-radius:14px;
+    border:1.5px solid var(--cyan);
+    color:var(--cyan);
+    font-family:'Orbitron',sans-serif;
+    font-weight:700;
+    text-decoration:none;
+    transition:all .2s;
+}
+a#downloadLink:hover{
+    background:rgba(34,211,238,.1);
+    box-shadow:0 0 18px rgba(34,211,238,.25);
+}
+
+@keyframes fadeUp{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:translateY(0)}}
 </style>
 </head>
 <body>
@@ -190,19 +381,34 @@ a{
     </div>
 </div>
 
-<p>音源を選択し、移調量を半音単位で入力してください。</p>
+<p class="lead">音源を選択し、移調量を半音単位で入力してください。</p>
 
 <p class="small">
 対応目安：MP3 / WAV / M4A / AAC / FLAC / OGG / WebM<br>
 例：1 = 半音上げ / -1 = 半音下げ / 2 = 全音上げ / 0.01 = 1セント微調整
 </p>
 
-<input id="audio" type="file" accept=".mp3,.wav,.m4a,.aac,.flac,.ogg,.webm,audio/*">
+<!-- ファイル選択（押せる感を強調したボタン） -->
+<div class="file-field">
+    <label class="file-btn" id="fileBtn" for="audio">
+        <span class="file-icon">
+            <svg viewBox="0 0 24 24" fill="none">
+                <path d="M12 16V4M12 4l-4 4M12 4l4 4" stroke="#04101f" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M5 16v3a1 1 0 001 1h12a1 1 0 001-1v-3" stroke="#04101f" stroke-width="2.2" stroke-linecap="round"/>
+            </svg>
+        </span>
+        <span class="file-text">
+            <span class="file-title" id="fileTitle">タップして音源を選択</span>
+            <span class="file-sub" id="fileSub">MP3 / WAV / M4A / AAC / FLAC / OGG / WebM</span>
+        </span>
+    </label>
+    <input id="audio" type="file" accept=".mp3,.wav,.m4a,.aac,.flac,.ogg,.webm,audio/*">
+</div>
 
 <div class="slider-box">
-    <label class="small">移調量</label>
+    <label class="field-label">移調量 / Transpose</label>
 
-    <input id="semitones" type="number" step="0.01" min="-12" max="12" value="0" placeholder="移調量 例：2 / -3 / 0.01 / -0.25">
+    <input id="semitones" type="number" step="0.01" min="-12" max="12" value="0" placeholder="例：2 / -3 / 0.01 / -0.25">
 
     <input id="semitonesSlider" type="range" min="-12" max="12" step="0.01" value="0">
 
@@ -249,13 +455,13 @@ A4=440Hzの場合：<br>
 +1 → 約466.16Hz
 </div>
 
-<button id="convertBtn">高品質変換する</button>
+<button id="convertBtn">⚡ 高品質変換する</button>
 
 <div class="progress"><div id="bar" class="bar"></div></div>
 <div id="status" class="status">音源を選択してください。</div>
 
 <audio id="player" controls style="display:none;"></audio>
-<a id="downloadLink" style="display:none;" download>変換後WAVをダウンロード</a>
+<a id="downloadLink" style="display:none;" download>⬇ 変換後WAVをダウンロード</a>
 </div>
 
 <script>
@@ -269,6 +475,9 @@ const bar = document.getElementById("bar");
 const player = document.getElementById("player");
 const downloadLink = document.getElementById("downloadLink");
 const pitchInfo = document.getElementById("pitchInfo");
+const fileBtn = document.getElementById("fileBtn");
+const fileTitle = document.getElementById("fileTitle");
+const fileSub = document.getElementById("fileSub");
 
 let resultUrl = null;
 
@@ -377,6 +586,20 @@ function updatePitchInfo(){
     `;
 }
 
+// ファイル選択時の表示更新
+audioInput.addEventListener("change", () => {
+    const f = audioInput.files[0];
+    if(f){
+        fileBtn.classList.add("has-file");
+        fileTitle.textContent = "🎵 " + f.name;
+        fileSub.textContent = "別のファイルを選ぶにはここをタップ";
+    }else{
+        fileBtn.classList.remove("has-file");
+        fileTitle.textContent = "タップして音源を選択";
+        fileSub.textContent = "MP3 / WAV / M4A / AAC / FLAC / OGG / WebM";
+    }
+});
+
 semitonesInput.addEventListener("input", () => {
     const value = clampPitch(semitonesInput.value);
     semitonesSlider.value = value;
@@ -456,12 +679,13 @@ convertBtn.addEventListener("click", async () => {
         setStatus("エラー：\\n" + error.message, 0);
     }finally{
         convertBtn.disabled = false;
-        convertBtn.textContent = "高品質変換する";
+        convertBtn.textContent = "⚡ 高品質変換する";
     }
 });
 </script>
 </body>
 </html>
+
 """
 
 @app.route("/")
