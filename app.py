@@ -414,6 +414,21 @@ input[type="range"]::-moz-range-thumb{
     line-height:1.7;
 }
 
+/* ── 変換所要時間の結果表示 ── */
+.elapsed-result{
+    margin-top:14px;
+    padding:16px;
+    background:rgba(34,197,94,.08);
+    border:1px solid rgba(34,197,94,.35);
+    border-left:3px solid var(--green);
+    border-radius:12px;
+    color:var(--green-bright);
+    font-size:15px;
+    line-height:1.7;
+    text-align:center;
+}
+.elapsed-result strong{color:var(--green-bright)}
+
 /* ── 情報ボックス ── */
 .info{
     margin-top:16px;
@@ -662,6 +677,8 @@ A4=440Hzの場合：<br>
 <div class="progress"><div id="bar" class="bar"></div></div>
 <div id="status" class="status">音源を選択してください。</div>
 
+<div id="elapsedResult" class="elapsed-result" style="display:none;"></div>
+
 <audio id="player" controls style="display:none;"></audio>
 <a id="downloadLink" style="display:none;" download>⬇ 変換後ファイルをダウンロード</a>
 </div>
@@ -789,6 +806,14 @@ function stopTitleBlink(){
 // ─── 経過時間カウンター ───
 let elapsedTimer = null;
 let elapsedStart = 0;
+let lastElapsedSec = 0;  // 直近の変換にかかった秒数（完了後の表示用）
+
+function fmtElapsed(sec){
+    const m = Math.floor(sec / 60);
+    const s = sec % 60;
+    if(m > 0){ return m + "分" + s.toString().padStart(2, "0") + "秒"; }
+    return s + "秒";
+}
 
 // 変換中にページを離脱しようとしたら確認を出す
 function beforeUnloadHandler(e){
@@ -806,9 +831,7 @@ function startElapsed(){
 }
 function updateElapsed(){
     const sec = Math.floor((Date.now() - elapsedStart) / 1000);
-    const m = Math.floor(sec / 60);
-    const s = sec % 60;
-    const timeStr = m + "分" + s.toString().padStart(2, "0") + "秒";
+    const timeStr = fmtElapsed(sec);
     setStatus(
         "🎚 高品質変換中...（Rubber Band R3モード）\\n" +
         "経過時間：" + timeStr + "\\n" +
@@ -818,6 +841,10 @@ function updateElapsed(){
     );
 }
 function stopElapsed(){
+    // 止める直前に所要時間を確定保存
+    if(elapsedTimer && elapsedStart){
+        lastElapsedSec = Math.floor((Date.now() - elapsedStart) / 1000);
+    }
     if(elapsedTimer){ clearInterval(elapsedTimer); elapsedTimer = null; }
     window.removeEventListener("beforeunload", beforeUnloadHandler);
 }
@@ -993,6 +1020,7 @@ convertBtn.addEventListener("click", async () => {
 
     player.style.display = "none";
     downloadLink.style.display = "none";
+    document.getElementById("elapsedResult").style.display = "none";
 
     convertBtn.disabled = true;
     convertBtn.textContent = "変換中...";
@@ -1037,6 +1065,12 @@ convertBtn.addEventListener("click", async () => {
         downloadLink.style.display = "block";
 
         setStatus("変換完了しました。\\n下のプレイヤーで再生確認できます。\\n必要なら" + ext.toUpperCase() + "をダウンロードしてください。", 100);
+
+        // 変換所要時間を専用エリアに表示（音源の長さと混同しないよう明記）
+        const doneBox = document.getElementById("elapsedResult");
+        doneBox.style.display = "block";
+        doneBox.innerHTML = "⏱ <strong>変換作業にかかった時間</strong>：" + fmtElapsed(lastElapsedSec) +
+            "<br><span style=\\"font-size:11px;color:var(--dim)\\">※音源の再生時間ではなく、移調処理が完了するまでの所要時間です</span>";
 
         fireCompletionNotify();
 
