@@ -413,6 +413,13 @@ input[type="range"]::-moz-range-thumb{
     font-weight:500;
     line-height:1.7;
 }
+.len-note{
+    display:block;
+    margin-top:8px;
+    color:var(--cyan-bright);
+    line-height:1.7;
+}
+.len-note strong{color:var(--cyan-bright)}
 
 /* ── 変換所要時間の結果表示 ── */
 .elapsed-result{
@@ -547,10 +554,11 @@ a#downloadLink:hover{
     </div>
 </div>
 
-<p class="lead">音源を選択し、移調量を半音単位で入力してください。</p>
+<p class="lead">音源または動画を選択し、移調量を半音単位で入力してください。</p>
 
 <p class="small">
-対応目安：MP3 / WAV / M4A / AAC / FLAC / OGG / WebM<br>
+音声：MP3 / WAV / M4A / AAC / FLAC / OGG / WebM<br>
+動画：MP4 / MOV / WebM / MKV / AVI（音声を自動で抽出して移調します）<br>
 例：1 = 半音上げ / -1 = 半音下げ / 2 = 全音上げ / 0.01 = 1セント微調整
 </p>
 
@@ -565,10 +573,10 @@ a#downloadLink:hover{
         </span>
         <span class="file-text">
             <span class="file-title" id="fileTitle">タップして音源を選択</span>
-            <span class="file-sub" id="fileSub">MP3 / WAV / M4A / AAC / FLAC / OGG / WebM</span>
+            <span class="file-sub" id="fileSub">音声・動画ファイル（動画は音声を抽出）</span>
         </span>
     </label>
-    <input id="audio" type="file" accept=".mp3,.wav,.m4a,.aac,.flac,.ogg,.webm,audio/*">
+    <input id="audio" type="file" accept=".mp3,.wav,.m4a,.aac,.flac,.ogg,.webm,.mp4,.mov,.mkv,.avi,.m4v,audio/*,video/*">
 </div>
 
 <div class="slider-box">
@@ -668,6 +676,7 @@ A4=440Hzの場合：<br>
 <div class="time-guide">
     ⏱ <strong>変換時間の目安</strong><br>
     5分程度の曲で <strong>およそ6〜8分</strong> かかります。曲が長いほど時間がかかります。<br>
+    <span class="len-note">📏 <strong>長さの目安：10分以内を推奨</strong>。10分を超えると処理に失敗することがあります（長尺の動画・音源は、必要な部分だけ切り出してからご利用ください）。</span><br>
     <span style="color:var(--dim)">変換中は、他のアプリに切り替えたり画面を消したりしてもOK。完了時に通知音・画面表示でお知らせします。</span><br>
     <span class="warn-note">⚠️ ただし、この画面を更新（リロード）したりタブを閉じたりすると変換が中止されます。変換が終わるまでこのページは閉じないでください。</span>
 </div>
@@ -978,7 +987,7 @@ audioInput.addEventListener("change", () => {
     }else{
         fileBtn.classList.remove("has-file");
         fileTitle.textContent = "タップして音源を選択";
-        fileSub.textContent = "MP3 / WAV / M4A / AAC / FLAC / OGG / WebM";
+        fileSub.textContent = "音声・動画ファイル（動画は音声を抽出）";
     }
 });
 
