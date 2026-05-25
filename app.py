@@ -333,6 +333,63 @@ input[type="range"]::-moz-range-thumb{
 }
 .tune-apply-btn:active{transform:scale(.98)}
 
+/* ── 自動ピッチ判定 ── */
+.detect-btn{
+    width:100%;
+    margin-top:14px;
+    padding:12px;
+    border:1.5px dashed var(--line);
+    border-radius:10px;
+    background:transparent;
+    color:var(--dim);
+    font-family:'Outfit',sans-serif;
+    font-size:13px;
+    font-weight:600;
+    cursor:pointer;
+    transition:all .18s;
+}
+.detect-btn:hover{border-color:var(--cyan);color:var(--cyan)}
+.detect-btn:active{transform:scale(.98)}
+.detect-btn:disabled{opacity:.5;cursor:not-allowed}
+.detect-result{
+    margin-top:10px;
+    padding:12px;
+    background:rgba(5,6,13,.5);
+    border:1px solid var(--line);
+    border-radius:10px;
+    font-size:13px;
+    line-height:1.7;
+    color:#cdd6ee;
+}
+.detect-result .big{
+    font-family:'Orbitron',sans-serif;
+    font-size:18px;
+    font-weight:700;
+    color:var(--cyan-bright);
+}
+.detect-result .note{
+    font-size:11px;
+    color:var(--dim);
+    margin-top:4px;
+}
+.detect-apply{
+    display:block;
+    width:100%;
+    margin-top:10px;
+    padding:10px;
+    border:1.5px solid var(--cyan);
+    border-radius:8px;
+    background:rgba(34,211,238,.1);
+    color:var(--cyan);
+    font-family:'Outfit',sans-serif;
+    font-size:12px;
+    font-weight:600;
+    cursor:pointer;
+    transition:all .18s;
+}
+.detect-apply:hover{background:rgba(34,211,238,.2)}
+.detect-apply:active{transform:scale(.98)}
+
 /* ── 形式選択 ── */
 .format-box{
     margin-top:16px;
@@ -718,6 +775,10 @@ a#downloadLink:hover{
             <select id="tuneTo" class="tune-select"></select>
         </div>
     </div>
+
+    <button type="button" id="detectBtn" class="detect-btn" onclick="detectPitch()">🔍 曲の基準ピッチを自動判定（参考）</button>
+    <div id="detectResult" class="detect-result" style="display:none;"></div>
+
     <div id="tunePreview" class="tune-preview">必要な移調量：0.00 半音（0 セント）</div>
     <button type="button" id="tuneApplyBtn" class="tune-apply-btn" onclick="applyTuning()">この移調量を適用する</button>
 </div>
@@ -1230,6 +1291,157 @@ function applyTuning(){
     const to = document.getElementById("tuneTo").value;
     // ステータスにも反映
     setStatus("🎯 " + from + "Hz → " + to + "Hz の移調量（" + clamped.toFixed(2) + "半音）をセットしました。\\n変換ボタンを押してください。", 0);
+}
+
+// ─── 自動ピッチ判定（ブラウザ内・簡易・参考値）───
+async function detectPitch(){
+    const file = audioInput.files[0];
+    const btn = document.getElementById("detectBtn");
+    const result = document.getElementById("detectResult");
+
+    if(!file){
+        result.style.display = "block";
+        result.innerHTML = "先に音源または動画ファイルを選択してください。";
+        return;
+    }
+
+    btn.disabled = true;
+    btn.textContent = "🔍 解析中...";
+    result.style.display = "block";
+    result.innerHTML = "曲を解析しています...（数秒〜十数秒）";
+
+    try{
+        // ファイルをAudioBufferにデコード
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const arrayBuf = await file.arrayBuffer();
+        const audioBuf = await ctx.decodeAudioData(arrayBuf.slice(0));
+        try{ ctx.close(); }catch(e){}
+
+        // モノラル化（先頭チャンネルを使用）
+        const data = audioBuf.getChannelData(0);
+        const sampleRate = audioBuf.sampleRate;
+
+        // 解析範囲：曲の中盤を最大60秒ぶん（頭と尾の無音・フェードを避ける）
+        const totalLen = data.length;
+        const analyzeSec = Math.min(60, audioBuf.duration);
+        const startIdx = Math.floor(totalLen * 0.2); // 20%地点から
+        const endIdx = Math.min(totalLen, startIdx + Math.floor(analyzeSec * sampleRate));
+
+        // セントずれのヒストグラム（-50〜+49セントを集計）
+        const centBins = new Array(100).fill(0);
+
+        const fftSize = 8192;
+        const hop = fftSize; // 重ならせず順に
+        const re = new Float32Array(fftSize);
+        const im = new Float32Array(fftSize);
+
+        let frameCount = 0;
+        for(let pos = startIdx; pos + fftSize < endIdx; pos += hop){
+            // 窓掛け（Hann）してFFT入力へ
+            for(let i = 0; i < fftSize; i++){
+                const w = 0.5 * (1 - Math.cos(2 * Math.PI * i / (fftSize - 1)));
+                re[i] = data[pos + i] * w;
+                im[i] = 0;
+            }
+            fft(re, im);
+
+            // パワースペクトルから、楽音域（80〜1000Hz）のピークを拾う
+            const minBin = Math.floor(80 * fftSize / sampleRate);
+            const maxBin = Math.floor(1000 * fftSize / sampleRate);
+            // 上位のピークを探す
+            for(let b = minBin; b < maxBin; b++){
+                const mag = re[b]*re[b] + im[b]*im[b];
+                // 局所ピーク（前後より大きい）かつ一定以上の強さ
+                if(mag > re[b-1]*re[b-1]+im[b-1]*im[b-1] &&
+                   mag > re[b+1]*re[b+1]+im[b+1]*im[b+1] &&
+                   mag > 0.0001){
+                    const freq = b * sampleRate / fftSize;
+                    // 440基準で最も近い半音からのセントずれを計算
+                    const midi = 69 + 12 * Math.log2(freq / 440);
+                    const nearest = Math.round(midi);
+                    const centOff = (midi - nearest) * 100; // -50〜+50
+                    let bin = Math.round(centOff) + 50;
+                    if(bin >= 0 && bin < 100){ centBins[bin] += Math.sqrt(mag); }
+                }
+            }
+            frameCount++;
+            if(frameCount > 200) break; // 安全のため上限
+        }
+
+        // ヒストグラムの重心（加重平均）でズレを推定
+        let sum = 0, wsum = 0;
+        for(let i = 0; i < 100; i++){
+            const cent = i - 50;
+            sum += centBins[i] * cent;
+            wsum += centBins[i];
+        }
+
+        if(wsum < 0.0001){
+            result.innerHTML = "判定できませんでした。<br><span class='note'>※打楽器中心の曲や無音が多い場合は判定が難しいことがあります。</span>";
+            return;
+        }
+
+        const avgCent = sum / wsum;
+        // 推定基準ピッチ = 440 * 2^(avgCent/1200)
+        const estimatedHz = 440 * Math.pow(2, avgCent / 1200);
+        const roundedHz = Math.round(estimatedHz);
+
+        const sign = avgCent > 0 ? "+" : "";
+        result.innerHTML =
+            "推定された基準ピッチ：<span class='big'>約 " + estimatedHz.toFixed(1) + " Hz</span><br>" +
+            "（440Hzから " + sign + avgCent.toFixed(1) + " セント）<br>" +
+            "<span class='note'>※あくまで参考値です。ドラム中心の曲などは外れることがあります。正確に合わせたい場合はチューナーでの確認をおすすめします。</span><br>" +
+            "<button type='button' class='detect-apply' onclick='useDetectedPitch(" + roundedHz + ")'>この値（" + roundedHz + "Hz）を「現在のピッチ」にセット</button>";
+
+    }catch(e){
+        console.warn("pitch detect failed:", e);
+        result.innerHTML = "解析に失敗しました。<br><span class='note'>※対応していない形式か、ファイルが大きすぎる可能性があります。</span>";
+    }finally{
+        btn.disabled = false;
+        btn.textContent = "🔍 曲の基準ピッチを自動判定（参考）";
+    }
+}
+
+// 判定結果を「現在のピッチ」プルダウンにセット
+function useDetectedPitch(hz){
+    const fromSel = document.getElementById("tuneFrom");
+    // 範囲内に収める
+    const clamped = Math.max(430, Math.min(460, hz));
+    fromSel.value = clamped;
+    updateTunePreview();
+}
+
+// 簡易FFT（Cooley-Tukey, in-place, radix-2）
+function fft(re, im){
+    const n = re.length;
+    for(let i = 1, j = 0; i < n; i++){
+        let bit = n >> 1;
+        for(; j & bit; bit >>= 1){ j ^= bit; }
+        j ^= bit;
+        if(i < j){
+            [re[i], re[j]] = [re[j], re[i]];
+            [im[i], im[j]] = [im[j], im[i]];
+        }
+    }
+    for(let len = 2; len <= n; len <<= 1){
+        const ang = -2 * Math.PI / len;
+        const wRe = Math.cos(ang), wIm = Math.sin(ang);
+        for(let i = 0; i < n; i += len){
+            let curRe = 1, curIm = 0;
+            for(let k = 0; k < len / 2; k++){
+                const uRe = re[i+k], uIm = im[i+k];
+                const vRe = re[i+k+len/2]*curRe - im[i+k+len/2]*curIm;
+                const vIm = re[i+k+len/2]*curIm + im[i+k+len/2]*curRe;
+                re[i+k] = uRe + vRe;
+                im[i+k] = uIm + vIm;
+                re[i+k+len/2] = uRe - vRe;
+                im[i+k+len/2] = uIm - vIm;
+                const nRe = curRe*wRe - curIm*wIm;
+                curIm = curRe*wIm + curIm*wRe;
+                curRe = nRe;
+            }
+        }
+    }
 }
 
 
