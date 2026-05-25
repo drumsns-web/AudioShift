@@ -226,6 +226,60 @@ h1{
     left:0;
     width:100%;
 }
+.wave-playhead{
+    position:absolute;
+    top:0;
+    width:2px;
+    height:100%;
+    background:#fbbf24;
+    box-shadow:0 0 6px #fbbf24;
+    pointer-events:none;
+    left:0;
+    z-index:4;
+    display:none;
+}
+.wave-player-row{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    margin-top:12px;
+    flex-wrap:wrap;
+}
+.wave-play-btn{
+    padding:9px 14px;
+    border:1.5px solid var(--cyan);
+    border-radius:8px;
+    background:rgba(34,211,238,.1);
+    color:var(--cyan);
+    font-family:'Outfit',sans-serif;
+    font-size:13px;
+    font-weight:600;
+    cursor:pointer;
+    transition:all .18s;
+}
+.wave-play-btn:hover{background:rgba(34,211,238,.2)}
+.wave-play-btn:active{transform:scale(.96)}
+.wave-play-time{
+    font-family:'Space Mono','Orbitron',monospace;
+    font-size:14px;
+    color:var(--cyan-bright);
+    margin-left:auto;
+}
+.set-here-btn{
+    width:100%;
+    margin-top:6px;
+    padding:7px 4px;
+    border:1px solid var(--line);
+    border-radius:7px;
+    background:var(--panel-light);
+    color:var(--dim);
+    font-family:'Outfit',sans-serif;
+    font-size:11px;
+    cursor:pointer;
+    transition:all .18s;
+}
+.set-here-btn:hover{border-color:var(--cyan);color:var(--cyan)}
+.set-here-btn:active{transform:scale(.97)}
 .wave-handle{
     position:absolute;
     top:0;
@@ -850,17 +904,26 @@ a#downloadLink:hover{
         <div class="waveform-wrap" id="waveformWrap">
             <canvas id="waveformCanvas"></canvas>
             <div class="wave-sel" id="waveSel"></div>
+            <div class="wave-playhead" id="wavePlayhead"></div>
             <div class="wave-handle wave-handle-a" id="waveHandleA"></div>
             <div class="wave-handle wave-handle-b" id="waveHandleB"></div>
         </div>
+        <div class="wave-player-row">
+            <button type="button" id="wavePlayBtn" class="wave-play-btn" onclick="toggleWavePlay()">▶ 再生</button>
+            <button type="button" id="wavePlayRangeBtn" class="wave-play-btn" onclick="playSelectedRange()">▶ 選択範囲を試聴</button>
+            <span id="wavePlayTime" class="wave-play-time">0:00</span>
+        </div>
+        <audio id="wavePreviewAudio" style="display:none;"></audio>
         <div class="range-time-row">
             <div class="range-time-col">
                 <label class="tune-label">開始</label>
                 <input type="text" id="rangeStartInput" class="range-time-input" value="0:00" onblur="onRangeTimeInput()">
+                <button type="button" class="set-here-btn" onclick="setRangeFromPlayhead('a')">▶今の位置を開始に</button>
             </div>
             <div class="range-time-col">
                 <label class="tune-label">終了</label>
                 <input type="text" id="rangeEndInput" class="range-time-input" value="0:00" onblur="onRangeTimeInput()">
+                <button type="button" class="set-here-btn" onclick="setRangeFromPlayhead('b')">▶今の位置を終了に</button>
             </div>
         </div>
         <div id="rangeInfo" class="range-info">選択範囲：全体</div>
@@ -1369,6 +1432,9 @@ let rangeMode = "full";      // 'full' | 'part'
 let rangeStart = 0;          // 選択開始（秒）
 let rangeEnd = 0;            // 選択終了（秒）
 let waveDragging = null;     // 'a' | 'b' | null
+let waveDecodedBuf = null;   // デコード済みAudioBuffer（描画用に保持）
+let wavePreviewURL = null;   // プレビュー再生用のObjectURL
+let wavePlayRAF = null;      // 再生位置更新のアニメーションフレーム
 
 function fmtMMSS(sec){
     sec = Math.max(0, sec);
@@ -1391,6 +1457,14 @@ function parseMMSS(str){
 async function loadWaveform(file){
     const box = document.getElementById("waveformBox");
     box.style.display = "block";
+
+    // 前回のプレビューURLを解放
+    if(wavePreviewURL){ try{ URL.revokeObjectURL(wavePreviewURL); }catch(e){} wavePreviewURL = null; }
+    // プレビュー再生用のURLを作成（元ファイルをそのまま再生）
+    try{ wavePreviewURL = URL.createObjectURL(file); }catch(e){ wavePreviewURL = null; }
+    const prev = document.getElementById("wavePreviewAudio");
+    if(prev && wavePreviewURL){ prev.src = wavePreviewURL; }
+
     setRangeMode("full");
     try{
         const ctx = new (window.AudioContext || window.webkitAudioContext)();
@@ -1398,15 +1472,28 @@ async function loadWaveform(file){
         const audioBuf = await ctx.decodeAudioData(arrayBuf.slice(0));
         try{ ctx.close(); }catch(e){}
 
+        waveDecodedBuf = audioBuf;
         waveAudioDuration = audioBuf.duration;
         rangeStart = 0;
         rangeEnd = waveAudioDuration;
-        drawWaveformCanvas(audioBuf);
         updateRangeUI();
     }catch(e){
         console.warn("waveform load failed:", e);
-        // デコード失敗しても変換自体は可能なので、範囲選択だけ無効化
+        // デコード失敗：波形は出ないが、プレビュー再生で長さを取得して範囲選択は可能にする
+        waveDecodedBuf = null;
         waveAudioDuration = 0;
+        // audio要素から長さを取得する
+        if(prev){
+            prev.addEventListener("loadedmetadata", function onMeta(){
+                prev.removeEventListener("loadedmetadata", onMeta);
+                if(isFinite(prev.duration) && prev.duration > 0){
+                    waveAudioDuration = prev.duration;
+                    rangeStart = 0;
+                    rangeEnd = waveAudioDuration;
+                    updateRangeUI();
+                }
+            });
+        }
     }
 }
 
@@ -1420,6 +1507,43 @@ function drawWaveformCanvas(audioBuf){
     const ctx2 = canvas.getContext("2d");
     ctx2.clearRect(0, 0, w, h);
 
+    const dur = audioBuf.duration;
+
+    // ── タイムライングリッド（時間目盛り）を先に描く ──
+    if(dur > 0){
+        // 曲の長さに応じて目盛り間隔を決める（5〜10本くらいになるよう）
+        let interval;
+        if(dur <= 15) interval = 2;
+        else if(dur <= 40) interval = 5;
+        else if(dur <= 90) interval = 10;
+        else if(dur <= 180) interval = 20;
+        else if(dur <= 360) interval = 30;
+        else if(dur <= 600) interval = 60;
+        else interval = 120;
+
+        ctx2.font = "10px 'Space Mono', monospace";
+        ctx2.textBaseline = "top";
+        for(let t = 0; t <= dur; t += interval){
+            const x = (t / dur) * w;
+            // 縦のグリッド線
+            ctx2.strokeStyle = "rgba(125,139,181,0.25)";
+            ctx2.lineWidth = 1;
+            ctx2.beginPath();
+            ctx2.moveTo(x, 0);
+            ctx2.lineTo(x, h);
+            ctx2.stroke();
+            // 時刻ラベル
+            const m = Math.floor(t / 60);
+            const s = Math.floor(t % 60);
+            const label = m + ":" + s.toString().padStart(2, "0");
+            ctx2.fillStyle = "rgba(125,139,181,0.85)";
+            // 右端のラベルははみ出さないよう少し左に
+            const tx = (x > w - 28) ? x - 26 : x + 3;
+            ctx2.fillText(label, tx, 2);
+        }
+    }
+
+    // ── 波形を描く ──
     const data = audioBuf.getChannelData(0);
     const step = Math.floor(data.length / w) || 1;
     const mid = h / 2;
@@ -1448,6 +1572,17 @@ function setRangeMode(mode){
     if(mode === "full"){
         rangeStart = 0;
         rangeEnd = waveAudioDuration;
+    }else{
+        // 波形エリアが表示された「後」に描画（隠れた状態だとcanvas幅が0になるため）
+        // requestAnimationFrameでレイアウト確定を待ってから描く
+        if(waveDecodedBuf){
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                    drawWaveformCanvas(waveDecodedBuf);
+                    updateRangeUI();
+                });
+            });
+        }
     }
     updateRangeUI();
 }
@@ -1529,6 +1664,115 @@ function onRangeTimeInput(){
     window.addEventListener("mouseup", () => { waveDragging = null; });
     window.addEventListener("touchend", () => { waveDragging = null; });
 })();
+
+// ─── プレビュー再生・再生位置表示 ───
+let wavePlayRangeOnly = false;  // 「選択範囲を試聴」モードか
+
+function getWaveAudio(){ return document.getElementById("wavePreviewAudio"); }
+
+function toggleWavePlay(){
+    const audio = getWaveAudio();
+    if(!audio || !wavePreviewURL) return;
+    if(audio.paused){
+        wavePlayRangeOnly = false;
+        audio.play();
+        document.getElementById("wavePlayBtn").textContent = "⏸ 停止";
+        startPlayheadLoop();
+    }else{
+        audio.pause();
+        document.getElementById("wavePlayBtn").textContent = "▶ 再生";
+    }
+}
+
+function playSelectedRange(){
+    const audio = getWaveAudio();
+    if(!audio || !wavePreviewURL || waveAudioDuration <= 0) return;
+    wavePlayRangeOnly = true;
+    audio.currentTime = rangeStart;
+    audio.play();
+    document.getElementById("wavePlayBtn").textContent = "⏸ 停止";
+    startPlayheadLoop();
+}
+
+function startPlayheadLoop(){
+    const audio = getWaveAudio();
+    const playhead = document.getElementById("wavePlayhead");
+    const wrap = document.getElementById("waveformWrap");
+    const timeLabel = document.getElementById("wavePlayTime");
+    if(!audio || !playhead || !wrap) return;
+
+    cancelPlayheadLoop();
+    playhead.style.display = "block";
+
+    function loop(){
+        const cur = audio.currentTime;
+        // 選択範囲試聴モードなら、範囲終端で停止
+        if(wavePlayRangeOnly && cur >= rangeEnd){
+            audio.pause();
+            document.getElementById("wavePlayBtn").textContent = "▶ 再生";
+            cancelPlayheadLoop();
+            return;
+        }
+        if(waveAudioDuration > 0){
+            const x = (cur / waveAudioDuration) * wrap.clientWidth;
+            playhead.style.left = x + "px";
+        }
+        if(timeLabel){ timeLabel.textContent = fmtMMSS(cur); }
+        if(!audio.paused){
+            wavePlayRAF = requestAnimationFrame(loop);
+        }
+    }
+    wavePlayRAF = requestAnimationFrame(loop);
+}
+
+function cancelPlayheadLoop(){
+    if(wavePlayRAF){ cancelAnimationFrame(wavePlayRAF); wavePlayRAF = null; }
+}
+
+// 再生終了・一時停止時にボタン表示を戻す
+(function initWavePlayerEvents(){
+    const audio = document.getElementById("wavePreviewAudio");
+    if(!audio) return;
+    audio.addEventListener("ended", () => {
+        document.getElementById("wavePlayBtn").textContent = "▶ 再生";
+        cancelPlayheadLoop();
+    });
+    audio.addEventListener("pause", () => {
+        document.getElementById("wavePlayBtn").textContent = "▶ 再生";
+    });
+    // 波形をクリック/タップしたらその位置にシーク
+    const wrap = document.getElementById("waveformWrap");
+    if(wrap){
+        wrap.addEventListener("click", (e) => {
+            // ハンドルのドラッグ中は無視
+            if(waveDragging) return;
+            if(waveAudioDuration <= 0 || !wavePreviewURL) return;
+            const rect = wrap.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const t = (x / rect.width) * waveAudioDuration;
+            audio.currentTime = Math.max(0, Math.min(t, waveAudioDuration));
+            const playhead = document.getElementById("wavePlayhead");
+            if(playhead){ playhead.style.display = "block"; playhead.style.left = x + "px"; }
+            const timeLabel = document.getElementById("wavePlayTime");
+            if(timeLabel){ timeLabel.textContent = fmtMMSS(audio.currentTime); }
+        });
+    }
+})();
+
+// 「今の位置を開始/終了に」
+function setRangeFromPlayhead(which){
+    const audio = getWaveAudio();
+    if(!audio || waveAudioDuration <= 0) return;
+    const t = audio.currentTime;
+    if(which === "a"){
+        rangeStart = Math.min(t, rangeEnd - 0.1);
+        if(rangeStart < 0) rangeStart = 0;
+    }else{
+        rangeEnd = Math.max(t, rangeStart + 0.1);
+        if(rangeEnd > waveAudioDuration) rangeEnd = waveAudioDuration;
+    }
+    updateRangeUI();
+}
 
 semitonesInput.addEventListener("input", () => {
     const value = clampPitch(semitonesInput.value);
@@ -1771,6 +2015,9 @@ convertBtn.addEventListener("click", async () => {
 
     // 通知の準備（ユーザー操作直後にAudioContext起動＆通知許可リクエスト）
     primeNotifications();
+
+    // プレビュー再生を止める
+    try{ const pa = document.getElementById("wavePreviewAudio"); if(pa && !pa.paused){ pa.pause(); } cancelPlayheadLoop(); }catch(e){}
 
     player.style.display = "none";
     downloadLink.style.display = "none";
