@@ -202,7 +202,7 @@ h1{
 .waveform-wrap{
     position:relative;
     margin-top:14px;
-    height:90px;
+    height:104px;
     background:var(--bg);
     border:1px solid var(--line);
     border-radius:10px;
@@ -1508,6 +1508,11 @@ function drawWaveformCanvas(audioBuf){
     ctx2.clearRect(0, 0, w, h);
 
     const dur = audioBuf.duration;
+    const labelBand = 16;  // 上部の時刻ラベル専用帯（px）
+
+    // ── 時刻ラベル帯の背景を敷く ──
+    ctx2.fillStyle = "rgba(5,6,13,0.85)";
+    ctx2.fillRect(0, 0, w, labelBand);
 
     // ── タイムライングリッド（時間目盛り）を先に描く ──
     if(dur > 0){
@@ -1525,28 +1530,36 @@ function drawWaveformCanvas(audioBuf){
         ctx2.textBaseline = "top";
         for(let t = 0; t <= dur; t += interval){
             const x = (t / dur) * w;
-            // 縦のグリッド線
-            ctx2.strokeStyle = "rgba(125,139,181,0.25)";
+            // 縦のグリッド線（波形領域のみ。ラベル帯の下から）
+            ctx2.strokeStyle = "rgba(125,139,181,0.22)";
             ctx2.lineWidth = 1;
             ctx2.beginPath();
-            ctx2.moveTo(x, 0);
+            ctx2.moveTo(x, labelBand);
             ctx2.lineTo(x, h);
             ctx2.stroke();
-            // 時刻ラベル
+            // ラベル帯の中に短い目盛り線
+            ctx2.strokeStyle = "rgba(125,139,181,0.5)";
+            ctx2.beginPath();
+            ctx2.moveTo(x, labelBand - 4);
+            ctx2.lineTo(x, labelBand);
+            ctx2.stroke();
+            // 時刻ラベル（ラベル帯の中に明るい色で）
             const m = Math.floor(t / 60);
             const s = Math.floor(t % 60);
             const label = m + ":" + s.toString().padStart(2, "0");
-            ctx2.fillStyle = "rgba(125,139,181,0.85)";
+            ctx2.fillStyle = "rgba(180,195,230,0.95)";
             // 右端のラベルははみ出さないよう少し左に
             const tx = (x > w - 28) ? x - 26 : x + 3;
-            ctx2.fillText(label, tx, 2);
+            ctx2.fillText(label, tx, 3);
         }
     }
 
-    // ── 波形を描く ──
+    // ── 波形を描く（ラベル帯の下の領域だけに収める）──
     const data = audioBuf.getChannelData(0);
     const step = Math.floor(data.length / w) || 1;
-    const mid = h / 2;
+    const waveTop = labelBand;
+    const waveH = h - labelBand;
+    const mid = waveTop + waveH / 2;
 
     ctx2.strokeStyle = "rgba(34,211,238,0.7)";
     ctx2.lineWidth = 1;
@@ -1558,8 +1571,8 @@ function drawWaveformCanvas(audioBuf){
             if(v < min) min = v;
             if(v > max) max = v;
         }
-        ctx2.moveTo(x, mid + min * mid * 0.9);
-        ctx2.lineTo(x, mid + max * mid * 0.9);
+        ctx2.moveTo(x, mid + min * (waveH / 2) * 0.9);
+        ctx2.lineTo(x, mid + max * (waveH / 2) * 0.9);
     }
     ctx2.stroke();
 }
