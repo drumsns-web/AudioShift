@@ -280,6 +280,23 @@ h1{
 }
 .set-here-btn:hover{border-color:var(--cyan);color:var(--cyan)}
 .set-here-btn:active{transform:scale(.97)}
+.extract-audio-btn{
+    width:100%;
+    margin-top:12px;
+    padding:12px;
+    border:1.5px solid var(--green);
+    border-radius:10px;
+    background:rgba(34,197,94,.1);
+    color:var(--green-bright);
+    font-family:'Outfit',sans-serif;
+    font-size:13px;
+    font-weight:600;
+    cursor:pointer;
+    transition:all .18s;
+}
+.extract-audio-btn:hover{background:rgba(34,197,94,.2);box-shadow:0 0 14px rgba(34,197,94,.25)}
+.extract-audio-btn:active{transform:scale(.98)}
+.extract-audio-btn:disabled{opacity:.5;cursor:not-allowed}
 .wave-handle{
     position:absolute;
     top:0;
@@ -908,12 +925,16 @@ a#downloadLink:hover{
             <div class="wave-handle wave-handle-a" id="waveHandleA"></div>
             <div class="wave-handle wave-handle-b" id="waveHandleB"></div>
         </div>
+        <div id="waveNoDecodeNote" style="display:none;font-size:11px;color:#fbbf24;line-height:1.6;margin-top:8px;padding:8px 10px;background:rgba(251,191,36,0.08);border-radius:8px;">
+            ⚠️ この形式（MOVなど）は波形を表示できませんが、下の「再生」で位置を確認しながら範囲を選べます。変換は問題なくできます。
+        </div>
         <div class="wave-player-row">
             <button type="button" id="wavePlayBtn" class="wave-play-btn" onclick="toggleWavePlay()">▶ 再生</button>
             <button type="button" id="wavePlayRangeBtn" class="wave-play-btn" onclick="playSelectedRange()">▶ 選択範囲を試聴</button>
             <span id="wavePlayTime" class="wave-play-time">0:00</span>
         </div>
-        <audio id="wavePreviewAudio" style="display:none;"></audio>
+        <button type="button" id="extractAudioBtn" class="extract-audio-btn" onclick="extractAudioOnly()">🎵 この音声をWAVで保存（移調せず抽出）</button>
+        <video id="wavePreviewAudio" playsinline style="display:none;width:1px;height:1px;"></video>
         <div class="range-time-row">
             <div class="range-time-col">
                 <label class="tune-label">開始</label>
@@ -1476,15 +1497,26 @@ async function loadWaveform(file){
         waveAudioDuration = audioBuf.duration;
         rangeStart = 0;
         rangeEnd = waveAudioDuration;
+        const note = document.getElementById("waveNoDecodeNote");
+        if(note) note.style.display = "none";
+        const exBtn = document.getElementById("extractAudioBtn");
+        if(exBtn){ exBtn.disabled = false; exBtn.textContent = "🎵 この音声をWAVで保存（移調せず抽出）"; }
         updateRangeUI();
     }catch(e){
-        console.warn("waveform load failed:", e);
-        // デコード失敗：波形は出ないが、プレビュー再生で長さを取得して範囲選択は可能にする
+        console.warn("waveform decode failed (波形なしで再生プレビューに切替):", e);
+        // デコード失敗（MOVなどブラウザが音声デコードできない形式）：
+        // 波形は出せないが、video要素での再生＋シークで範囲選択は可能にする
         waveDecodedBuf = null;
         waveAudioDuration = 0;
-        // audio要素から長さを取得する
+        // 波形が出ないことを案内
+        const note = document.getElementById("waveNoDecodeNote");
+        if(note) note.style.display = "block";
+        // 音声抽出ボタンは波形デコードが必要なので無効化
+        const exBtn = document.getElementById("extractAudioBtn");
+        if(exBtn){ exBtn.disabled = true; exBtn.textContent = "🎵 この形式は音声抽出に非対応"; }
+        // video要素から長さを取得（MOVでもvideoなら取れることが多い）
         if(prev){
-            prev.addEventListener("loadedmetadata", function onMeta(){
+            const onMeta = function(){
                 prev.removeEventListener("loadedmetadata", onMeta);
                 if(isFinite(prev.duration) && prev.duration > 0){
                     waveAudioDuration = prev.duration;
@@ -1492,9 +1524,55 @@ async function loadWaveform(file){
                     rangeEnd = waveAudioDuration;
                     updateRangeUI();
                 }
-            });
+            };
+            prev.addEventListener("loadedmetadata", onMeta);
+            // すでにメタデータ読み込み済みの場合に備えて
+            if(isFinite(prev.duration) && prev.duration > 0){
+                waveAudioDuration = prev.duration;
+                rangeStart = 0;
+                rangeEnd = waveAudioDuration;
+                updateRangeUI();
+            }
         }
     }
+}
+
+// AudioBufferをWAV Blobに変換（16bit PCM）
+function audioBufferToWavBlob(buf){
+    const numCh = buf.numberOfChannels;
+    const len = buf.length;
+    const sampleRate = buf.sampleRate;
+    const bytesPerSample = 2;
+    const blockAlign = numCh * bytesPerSample;
+    const dataSize = len * blockAlign;
+    const arrBuf = new ArrayBuffer(44 + dataSize);
+    const view = new DataView(arrBuf);
+    const writeStr = (off, str) => { for(let i=0;i<str.length;i++) view.setUint8(off+i, str.charCodeAt(i)); };
+    writeStr(0, "RIFF");
+    view.setUint32(4, 36 + dataSize, true);
+    writeStr(8, "WAVE");
+    writeStr(12, "fmt ");
+    view.setUint32(16, 16, true);
+    view.setUint16(20, 1, true);
+    view.setUint16(22, numCh, true);
+    view.setUint32(24, sampleRate, true);
+    view.setUint32(28, sampleRate * blockAlign, true);
+    view.setUint16(32, blockAlign, true);
+    view.setUint16(34, 16, true);
+    writeStr(36, "data");
+    view.setUint32(40, dataSize, true);
+    // チャンネルデータをインターリーブして書き込み
+    let offset = 44;
+    const channels = [];
+    for(let c=0;c<numCh;c++){ channels.push(buf.getChannelData(c)); }
+    for(let i=0;i<len;i++){
+        for(let c=0;c<numCh;c++){
+            let s = Math.max(-1, Math.min(1, channels[c][i] || 0));
+            view.setInt16(offset, s < 0 ? s*32768 : s*32767, true);
+            offset += 2;
+        }
+    }
+    return new Blob([arrBuf], {type:"audio/wav"});
 }
 
 function drawWaveformCanvas(audioBuf){
@@ -1787,6 +1865,47 @@ function setRangeFromPlayhead(which){
     updateRangeUI();
 }
 
+// 音声だけをWAVで保存（移調せず抽出）。範囲選択中ならその区間だけ
+function extractAudioOnly(){
+    if(!waveDecodedBuf){
+        alert("音声データを準備中です。少し待ってからお試しください。\\n（動画によっては音声の読み込みに時間がかかることがあります）");
+        return;
+    }
+    try{
+        let bufToSave = waveDecodedBuf;
+        // 範囲選択モードなら、その区間だけ切り出す
+        if(rangeMode === "part" && waveAudioDuration > 0 && (rangeEnd - rangeStart) > 0.1){
+            const sr = waveDecodedBuf.sampleRate;
+            const numCh = waveDecodedBuf.numberOfChannels;
+            const startSample = Math.floor(rangeStart * sr);
+            const endSample = Math.floor(rangeEnd * sr);
+            const segLen = endSample - startSample;
+            const seg = new AudioBuffer({length: segLen, numberOfChannels: numCh, sampleRate: sr});
+            for(let c=0;c<numCh;c++){
+                const src = waveDecodedBuf.getChannelData(c);
+                const dst = seg.getChannelData(c);
+                for(let i=0;i<segLen;i++){ dst[i] = src[startSample + i] || 0; }
+            }
+            bufToSave = seg;
+        }
+        const wavBlob = audioBufferToWavBlob(bufToSave);
+        const url = URL.createObjectURL(wavBlob);
+        const baseName = (audioInput.files[0] ? audioInput.files[0].name : "audio").replace(/\\.[^/.]+$/, "");
+        let suffix = "_audio";
+        if(rangeMode === "part" && (rangeEnd - rangeStart) > 0.1){
+            suffix = "_audio_" + fmtMMSS(rangeStart).replace(":","m") + "-" + fmtMMSS(rangeEnd).replace(":","m");
+        }
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = baseName + suffix + ".wav";
+        a.click();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+    }catch(e){
+        console.warn("extract audio failed:", e);
+        alert("音声の抽出に失敗しました。");
+    }
+}
+
 semitonesInput.addEventListener("input", () => {
     const value = clampPitch(semitonesInput.value);
     semitonesSlider.value = value;
@@ -2041,8 +2160,27 @@ convertBtn.addEventListener("click", async () => {
     convertBtn.textContent = "変換中...";
     setStatus("アップロード準備中...", 10);
 
+    // 送信ファイルを決定：動画などでデコード済み音声があり、WAV化した方が軽ければそれを送る
+    let uploadFile = file;
+    let uploadName = file.name;
+    try{
+        if(waveDecodedBuf){
+            setStatus("音声を準備中...", 15);
+            const wavBlob = audioBufferToWavBlob(waveDecodedBuf);
+            // 抽出WAVの方が元ファイルより小さければ、それを送る（アップロード短縮）
+            if(wavBlob.size < file.size){
+                uploadFile = wavBlob;
+                uploadName = file.name.replace(/\\.[^/.]+$/, "") + ".wav";
+            }
+        }
+    }catch(e){
+        console.warn("audio extract for upload failed, sending original:", e);
+        uploadFile = file;
+        uploadName = file.name;
+    }
+
     const formData = new FormData();
-    formData.append("audio", file);
+    formData.append("audio", uploadFile, uploadName);
     formData.append("semitones", semitones);
     formData.append("format", outFormat);
     formData.append("bitrate", mp3Bitrate);
