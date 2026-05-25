@@ -263,6 +263,76 @@ input[type="range"]::-moz-range-thumb{
 }
 .quick-buttons button:active{transform:scale(.94)}
 
+/* ── 基準ピッチ合わせ ── */
+.pitch-tune-box{
+    margin-top:16px;
+    padding:18px;
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:16px;
+}
+.tune-row{
+    display:flex;
+    align-items:flex-end;
+    gap:10px;
+    margin-top:14px;
+}
+.tune-col{flex:1}
+.tune-label{
+    display:block;
+    font-size:11px;
+    color:var(--dim);
+    margin-bottom:6px;
+    text-align:center;
+}
+.tune-select{
+    width:100%;
+    padding:12px 8px;
+    border-radius:10px;
+    border:1.5px solid var(--line);
+    background:var(--panel-light);
+    color:var(--text);
+    font-size:15px;
+    font-family:'Orbitron',sans-serif;
+    font-weight:700;
+    text-align:center;
+    cursor:pointer;
+}
+.tune-select:focus{outline:none;border-color:var(--cyan);box-shadow:0 0 0 3px rgba(34,211,238,.15)}
+.tune-arrow{
+    flex:0 0 auto;
+    font-size:20px;
+    color:var(--cyan);
+    padding-bottom:10px;
+}
+.tune-preview{
+    margin-top:14px;
+    text-align:center;
+    font-family:'Orbitron',sans-serif;
+    font-size:14px;
+    font-weight:700;
+    color:var(--cyan-bright);
+}
+.tune-apply-btn{
+    width:100%;
+    margin-top:12px;
+    padding:13px;
+    border:1.5px solid var(--cyan);
+    border-radius:12px;
+    background:rgba(34,211,238,.1);
+    color:var(--cyan);
+    font-family:'Orbitron',sans-serif;
+    font-size:14px;
+    font-weight:700;
+    cursor:pointer;
+    transition:all .18s;
+}
+.tune-apply-btn:hover{
+    background:rgba(34,211,238,.2);
+    box-shadow:0 0 16px rgba(34,211,238,.3);
+}
+.tune-apply-btn:active{transform:scale(.98)}
+
 /* ── 形式選択 ── */
 .format-box{
     margin-top:16px;
@@ -629,6 +699,27 @@ a#downloadLink:hover{
         <button type="button" onclick="adjustPitch(-0.01)">-0.01</button>
         <button type="button" onclick="adjustPitch(0.01)">+0.01</button>
     </div>
+</div>
+
+<div class="pitch-tune-box">
+    <label class="field-label">🎯 基準ピッチ合わせ / Tuning</label>
+    <div style="font-size:12px;color:var(--dim);line-height:1.6;margin-top:8px">
+        曲の基準ピッチ（A=何Hzか）を「現在」に、合わせたいピッチを「目標」に選んで「適用」を押すと、必要な移調量が自動でセットされます。<br>
+        例：455Hzの曲を440Hzにそろえる、442Hzの曲を440Hzにする、など。
+    </div>
+    <div class="tune-row">
+        <div class="tune-col">
+            <label class="tune-label">現在のピッチ</label>
+            <select id="tuneFrom" class="tune-select"></select>
+        </div>
+        <div class="tune-arrow">→</div>
+        <div class="tune-col">
+            <label class="tune-label">目標のピッチ</label>
+            <select id="tuneTo" class="tune-select"></select>
+        </div>
+    </div>
+    <div id="tunePreview" class="tune-preview">必要な移調量：0.00 半音（0 セント）</div>
+    <button type="button" id="tuneApplyBtn" class="tune-apply-btn" onclick="applyTuning()">この移調量を適用する</button>
 </div>
 
 <div id="pitchInfo" class="info">
@@ -1089,6 +1180,58 @@ semitonesSlider.addEventListener("input", () => {
 });
 
 updatePitchInfo();
+
+// ─── 基準ピッチ合わせ ───
+// 430〜460Hzのプルダウンを生成し、現在→目標の差から移調量(セント)を計算
+(function initTuning(){
+    const fromSel = document.getElementById("tuneFrom");
+    const toSel = document.getElementById("tuneTo");
+    if(!fromSel || !toSel) return;
+
+    for(let hz = 430; hz <= 460; hz++){
+        const o1 = document.createElement("option");
+        o1.value = hz; o1.textContent = hz + " Hz";
+        if(hz === 440) o1.selected = true;
+        fromSel.appendChild(o1);
+
+        const o2 = document.createElement("option");
+        o2.value = hz; o2.textContent = hz + " Hz";
+        if(hz === 440) o2.selected = true;
+        toSel.appendChild(o2);
+    }
+
+    fromSel.addEventListener("change", updateTunePreview);
+    toSel.addEventListener("change", updateTunePreview);
+    updateTunePreview();
+})();
+
+// 現在→目標の移調量(半音)を計算
+function calcTuneSemitones(){
+    const from = Number(document.getElementById("tuneFrom").value);
+    const to = Number(document.getElementById("tuneTo").value);
+    // 周波数比から半音を算出： 12 * log2(to/from)
+    return 12 * Math.log2(to / from);
+}
+
+function updateTunePreview(){
+    const semi = calcTuneSemitones();
+    const cents = semi * 100;
+    const sign = semi > 0 ? "+" : "";
+    document.getElementById("tunePreview").textContent =
+        "必要な移調量：" + sign + semi.toFixed(2) + " 半音（" + sign + cents.toFixed(0) + " セント）";
+}
+
+// 計算した移調量を移調スライダー/入力に適用
+function applyTuning(){
+    const semi = calcTuneSemitones();
+    const clamped = clampPitch(semi);
+    setPitch(clamped);
+    const from = document.getElementById("tuneFrom").value;
+    const to = document.getElementById("tuneTo").value;
+    // ステータスにも反映
+    setStatus("🎯 " + from + "Hz → " + to + "Hz の移調量（" + clamped.toFixed(2) + "半音）をセットしました。\\n変換ボタンを押してください。", 0);
+}
+
 
 convertBtn.addEventListener("click", async () => {
     const file = audioInput.files[0];
