@@ -165,6 +165,115 @@ h1{
 .file-sub{font-size:12px;color:var(--dim);margin-top:2px;word-break:break-all}
 #audio{display:none}
 
+/* ── 波形・範囲選択 ── */
+.waveform-box{
+    margin-top:16px;
+    padding:18px;
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:16px;
+}
+.range-mode{
+    display:grid;
+    grid-template-columns:repeat(2, 1fr);
+    gap:8px;
+    margin-top:10px;
+}
+.range-mode-btn{
+    padding:12px;
+    font-family:'Orbitron',sans-serif;
+    font-size:13px;
+    font-weight:700;
+    background:var(--panel-light);
+    color:var(--dim);
+    border:1.5px solid var(--line);
+    border-radius:10px;
+    cursor:pointer;
+    transition:all .18s;
+}
+.range-mode-btn:hover{border-color:var(--cyan);color:var(--cyan)}
+.range-mode-btn:active{transform:scale(.97)}
+.range-mode-btn.active{
+    border-color:var(--cyan);
+    color:var(--cyan);
+    background:rgba(34,211,238,.12);
+    box-shadow:0 0 12px rgba(34,211,238,.2);
+}
+.waveform-wrap{
+    position:relative;
+    margin-top:14px;
+    height:90px;
+    background:var(--bg);
+    border:1px solid var(--line);
+    border-radius:10px;
+    overflow:hidden;
+    touch-action:none;
+    user-select:none;
+}
+#waveformCanvas{
+    width:100%;
+    height:100%;
+    display:block;
+}
+.wave-sel{
+    position:absolute;
+    top:0;
+    height:100%;
+    background:rgba(34,211,238,.18);
+    border-left:2px solid var(--cyan);
+    border-right:2px solid var(--cyan);
+    pointer-events:none;
+    left:0;
+    width:100%;
+}
+.wave-handle{
+    position:absolute;
+    top:0;
+    width:18px;
+    height:100%;
+    cursor:ew-resize;
+    z-index:3;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+}
+.wave-handle::after{
+    content:'';
+    width:4px;
+    height:40%;
+    background:var(--cyan);
+    border-radius:2px;
+    box-shadow:0 0 8px var(--cyan);
+}
+.wave-handle-a{left:0;transform:translateX(-9px)}
+.wave-handle-b{right:0;transform:translateX(9px)}
+.range-time-row{
+    display:flex;
+    gap:10px;
+    margin-top:12px;
+}
+.range-time-col{flex:1}
+.range-time-input{
+    width:100%;
+    padding:10px;
+    border-radius:8px;
+    border:1.5px solid var(--line);
+    background:var(--panel-light);
+    color:var(--text);
+    font-family:'Space Mono','Orbitron',monospace;
+    font-size:15px;
+    text-align:center;
+    box-sizing:border-box;
+}
+.range-time-input:focus{outline:none;border-color:var(--cyan)}
+.range-info{
+    margin-top:12px;
+    text-align:center;
+    font-size:13px;
+    color:var(--cyan-bright);
+    font-family:'Space Mono',monospace;
+}
+
 /* ── スライダーボックス ── */
 .slider-box{
     margin-top:16px;
@@ -731,6 +840,33 @@ a#downloadLink:hover{
     <input id="audio" type="file" accept=".mp3,.wav,.m4a,.aac,.flac,.ogg,.webm,.mp4,.mov,.mkv,.avi,.m4v,audio/*,video/*">
 </div>
 
+<div class="waveform-box" id="waveformBox" style="display:none;">
+    <label class="field-label">✂️ 変換する範囲 / Range</label>
+    <div class="range-mode">
+        <button type="button" id="rangeFull" class="range-mode-btn active" onclick="setRangeMode('full')">曲全体</button>
+        <button type="button" id="rangePart" class="range-mode-btn" onclick="setRangeMode('part')">範囲を選ぶ</button>
+    </div>
+    <div id="waveformArea" style="display:none;">
+        <div class="waveform-wrap" id="waveformWrap">
+            <canvas id="waveformCanvas"></canvas>
+            <div class="wave-sel" id="waveSel"></div>
+            <div class="wave-handle wave-handle-a" id="waveHandleA"></div>
+            <div class="wave-handle wave-handle-b" id="waveHandleB"></div>
+        </div>
+        <div class="range-time-row">
+            <div class="range-time-col">
+                <label class="tune-label">開始</label>
+                <input type="text" id="rangeStartInput" class="range-time-input" value="0:00" onblur="onRangeTimeInput()">
+            </div>
+            <div class="range-time-col">
+                <label class="tune-label">終了</label>
+                <input type="text" id="rangeEndInput" class="range-time-input" value="0:00" onblur="onRangeTimeInput()">
+            </div>
+        </div>
+        <div id="rangeInfo" class="range-info">選択範囲：全体</div>
+    </div>
+</div>
+
 <div class="slider-box">
     <label class="field-label">移調量 / Transpose</label>
 
@@ -1218,12 +1354,181 @@ audioInput.addEventListener("change", () => {
         fileBtn.classList.add("has-file");
         fileTitle.textContent = "🎵 " + f.name;
         fileSub.textContent = "別のファイルを選ぶにはここをタップ";
+        loadWaveform(f);
     }else{
         fileBtn.classList.remove("has-file");
         fileTitle.textContent = "タップして音源を選択";
         fileSub.textContent = "音声・動画ファイル（動画は音声を抽出）";
+        document.getElementById("waveformBox").style.display = "none";
     }
 });
+
+// ─── 波形表示・範囲選択 ───
+let waveAudioDuration = 0;   // 音源の長さ（秒）
+let rangeMode = "full";      // 'full' | 'part'
+let rangeStart = 0;          // 選択開始（秒）
+let rangeEnd = 0;            // 選択終了（秒）
+let waveDragging = null;     // 'a' | 'b' | null
+
+function fmtMMSS(sec){
+    sec = Math.max(0, sec);
+    const m = Math.floor(sec / 60);
+    const s = Math.floor(sec % 60);
+    return m + ":" + s.toString().padStart(2, "0");
+}
+function parseMMSS(str){
+    // "1:23" or "83" を秒に
+    str = (str || "").trim();
+    if(str.indexOf(":") >= 0){
+        const parts = str.split(":");
+        const m = parseInt(parts[0], 10) || 0;
+        const s = parseInt(parts[1], 10) || 0;
+        return m * 60 + s;
+    }
+    return parseFloat(str) || 0;
+}
+
+async function loadWaveform(file){
+    const box = document.getElementById("waveformBox");
+    box.style.display = "block";
+    setRangeMode("full");
+    try{
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const arrayBuf = await file.arrayBuffer();
+        const audioBuf = await ctx.decodeAudioData(arrayBuf.slice(0));
+        try{ ctx.close(); }catch(e){}
+
+        waveAudioDuration = audioBuf.duration;
+        rangeStart = 0;
+        rangeEnd = waveAudioDuration;
+        drawWaveformCanvas(audioBuf);
+        updateRangeUI();
+    }catch(e){
+        console.warn("waveform load failed:", e);
+        // デコード失敗しても変換自体は可能なので、範囲選択だけ無効化
+        waveAudioDuration = 0;
+    }
+}
+
+function drawWaveformCanvas(audioBuf){
+    const canvas = document.getElementById("waveformCanvas");
+    const wrap = document.getElementById("waveformWrap");
+    const w = wrap.clientWidth;
+    const h = wrap.clientHeight;
+    canvas.width = w;
+    canvas.height = h;
+    const ctx2 = canvas.getContext("2d");
+    ctx2.clearRect(0, 0, w, h);
+
+    const data = audioBuf.getChannelData(0);
+    const step = Math.floor(data.length / w) || 1;
+    const mid = h / 2;
+
+    ctx2.strokeStyle = "rgba(34,211,238,0.7)";
+    ctx2.lineWidth = 1;
+    ctx2.beginPath();
+    for(let x = 0; x < w; x++){
+        let min = 1, max = -1;
+        for(let i = 0; i < step; i++){
+            const v = data[x * step + i] || 0;
+            if(v < min) min = v;
+            if(v > max) max = v;
+        }
+        ctx2.moveTo(x, mid + min * mid * 0.9);
+        ctx2.lineTo(x, mid + max * mid * 0.9);
+    }
+    ctx2.stroke();
+}
+
+function setRangeMode(mode){
+    rangeMode = mode;
+    document.getElementById("rangeFull").classList.toggle("active", mode === "full");
+    document.getElementById("rangePart").classList.toggle("active", mode === "part");
+    document.getElementById("waveformArea").style.display = (mode === "part") ? "block" : "none";
+    if(mode === "full"){
+        rangeStart = 0;
+        rangeEnd = waveAudioDuration;
+    }
+    updateRangeUI();
+}
+
+function updateRangeUI(){
+    const wrap = document.getElementById("waveformWrap");
+    const sel = document.getElementById("waveSel");
+    const ha = document.getElementById("waveHandleA");
+    const hb = document.getElementById("waveHandleB");
+    const info = document.getElementById("rangeInfo");
+
+    if(waveAudioDuration <= 0){
+        info.textContent = "選択範囲：全体";
+        return;
+    }
+    const w = wrap.clientWidth;
+    const xA = (rangeStart / waveAudioDuration) * w;
+    const xB = (rangeEnd / waveAudioDuration) * w;
+    sel.style.left = xA + "px";
+    sel.style.width = Math.max(0, xB - xA) + "px";
+    ha.style.left = xA + "px";
+    hb.style.left = xB + "px";
+
+    document.getElementById("rangeStartInput").value = fmtMMSS(rangeStart);
+    document.getElementById("rangeEndInput").value = fmtMMSS(rangeEnd);
+
+    if(rangeMode === "part"){
+        const dur = rangeEnd - rangeStart;
+        info.textContent = "選択範囲：" + fmtMMSS(rangeStart) + " 〜 " + fmtMMSS(rangeEnd) + "（" + fmtMMSS(dur) + "ぶん）";
+    }else{
+        info.textContent = "選択範囲：全体";
+    }
+}
+
+function onRangeTimeInput(){
+    let s = parseMMSS(document.getElementById("rangeStartInput").value);
+    let e = parseMMSS(document.getElementById("rangeEndInput").value);
+    s = Math.max(0, Math.min(s, waveAudioDuration));
+    e = Math.max(0, Math.min(e, waveAudioDuration));
+    if(e < s){ const tmp = s; s = e; e = tmp; }
+    rangeStart = s;
+    rangeEnd = e;
+    updateRangeUI();
+}
+
+// 波形上のドラッグで範囲選択
+(function initWaveDrag(){
+    const wrap = document.getElementById("waveformWrap");
+    const ha = document.getElementById("waveHandleA");
+    const hb = document.getElementById("waveHandleB");
+    if(!wrap) return;
+
+    function xToTime(clientX){
+        const rect = wrap.getBoundingClientRect();
+        let x = clientX - rect.left;
+        x = Math.max(0, Math.min(x, rect.width));
+        return (x / rect.width) * waveAudioDuration;
+    }
+    function startDrag(which){ return (e) => { waveDragging = which; e.preventDefault(); }; }
+    ha.addEventListener("mousedown", startDrag("a"));
+    hb.addEventListener("mousedown", startDrag("b"));
+    ha.addEventListener("touchstart", startDrag("a"), {passive:false});
+    hb.addEventListener("touchstart", startDrag("b"), {passive:false});
+
+    function move(clientX){
+        if(!waveDragging || waveAudioDuration <= 0) return;
+        const t = xToTime(clientX);
+        if(waveDragging === "a"){
+            rangeStart = Math.min(t, rangeEnd - 0.1);
+            if(rangeStart < 0) rangeStart = 0;
+        }else{
+            rangeEnd = Math.max(t, rangeStart + 0.1);
+            if(rangeEnd > waveAudioDuration) rangeEnd = waveAudioDuration;
+        }
+        updateRangeUI();
+    }
+    window.addEventListener("mousemove", (e) => move(e.clientX));
+    window.addEventListener("touchmove", (e) => { if(waveDragging && e.touches[0]){ move(e.touches[0].clientX); e.preventDefault(); } }, {passive:false});
+    window.addEventListener("mouseup", () => { waveDragging = null; });
+    window.addEventListener("touchend", () => { waveDragging = null; });
+})();
 
 semitonesInput.addEventListener("input", () => {
     const value = clampPitch(semitonesInput.value);
@@ -1481,6 +1786,11 @@ convertBtn.addEventListener("click", async () => {
     formData.append("semitones", semitones);
     formData.append("format", outFormat);
     formData.append("bitrate", mp3Bitrate);
+    // 範囲指定（partモードかつ有効な範囲のときだけ送る）
+    if(rangeMode === "part" && waveAudioDuration > 0 && (rangeEnd - rangeStart) > 0.1){
+        formData.append("trim_start", rangeStart.toFixed(3));
+        formData.append("trim_end", rangeEnd.toFixed(3));
+    }
 
     try{
         setStatus("サーバーへアップロード中...\\n曲が長い場合は少し時間がかかります。\\n目安：5分の曲でおよそ6〜8分。", 30);
@@ -1553,6 +1863,8 @@ def shift_audio():
         semitones = request.form.get("semitones", "0")
         out_format = request.form.get("format", "wav")
         mp3_bitrate = request.form.get("bitrate", "320")
+        trim_start = request.form.get("trim_start", "")
+        trim_end = request.form.get("trim_end", "")
 
         try:
             semitone_value = float(semitones)
@@ -1568,6 +1880,18 @@ def shift_audio():
         if mp3_bitrate not in ("128", "192", "320"):
             mp3_bitrate = "320"
 
+        # 範囲指定の解析（指定があれば切り出し）
+        trim_args = []
+        try:
+            if trim_start != "" and trim_end != "":
+                ts = float(trim_start)
+                te = float(trim_end)
+                if te > ts >= 0 and (te - ts) > 0.05:
+                    # -ss（開始）と -t（長さ）で切り出し
+                    trim_args = ["-ss", str(ts), "-t", str(te - ts)]
+        except ValueError:
+            trim_args = []
+
         uid = str(uuid.uuid4())
 
         input_path = UPLOAD_DIR / f"{uid}_input"
@@ -1576,16 +1900,18 @@ def shift_audio():
 
         file.save(input_path)
 
-        subprocess.run([
-            "ffmpeg",
-            "-y",
+        # 入力→WAV（範囲指定があれば -ss/-t で切り出し。-i の前に置くと高速）
+        ffmpeg_cmd = ["ffmpeg", "-y"]
+        ffmpeg_cmd += trim_args
+        ffmpeg_cmd += [
             "-i", str(input_path),
             "-vn",
             "-ar", "44100",
             "-ac", "2",
             "-acodec", "pcm_s16le",
             str(wav_path)
-        ], check=True)
+        ]
+        subprocess.run(ffmpeg_cmd, check=True)
 
         subprocess.run([
             "rubberband",
