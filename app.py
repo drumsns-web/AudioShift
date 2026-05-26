@@ -159,6 +159,32 @@ h1{
     transition:transform .25s;
 }
 .file-btn:hover .file-icon{transform:scale(1.08) rotate(-3deg)}
+
+/* ── ファイル削除ボタン ── */
+.file-field-wrap{
+    display:flex;
+    align-items:center;
+    gap:10px;
+}
+.file-field-wrap .file-field{flex:1}
+.file-clear-btn{
+    flex-shrink:0;
+    width:40px;
+    height:40px;
+    border:1.5px solid #ef4444;
+    border-radius:10px;
+    background:rgba(239,68,68,.1);
+    color:#ef4444;
+    font-size:18px;
+    font-weight:700;
+    cursor:pointer;
+    transition:all .18s;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+}
+.file-clear-btn:hover{background:rgba(239,68,68,.25);box-shadow:0 0 12px rgba(239,68,68,.3)}
+.file-clear-btn:active{transform:scale(.93)}
 .file-icon svg{width:24px;height:24px}
 .file-text{flex:1;min-width:0}
 .file-title{font-size:15px;font-weight:600;color:var(--text)}
@@ -1242,20 +1268,23 @@ a#downloadLink:hover{
 </div>
 
 <!-- ファイル選択（押せる感を強調したボタン） -->
-<div class="file-field">
-    <label class="file-btn" id="fileBtn" for="audio">
-        <span class="file-icon">
-            <svg viewBox="0 0 24 24" fill="none">
-                <path d="M12 16V4M12 4l-4 4M12 4l4 4" stroke="#04101f" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M5 16v3a1 1 0 001 1h12a1 1 0 001-1v-3" stroke="#04101f" stroke-width="2.2" stroke-linecap="round"/>
-            </svg>
-        </span>
-        <span class="file-text">
-            <span class="file-title" id="fileTitle">タップして音源を選択</span>
-            <span class="file-sub" id="fileSub">音声・動画ファイル（動画は音声を抽出）</span>
-        </span>
-    </label>
-    <input id="audio" type="file" accept=".mp3,.wav,.m4a,.aac,.flac,.ogg,.webm,.mp4,.mov,.mkv,.avi,.m4v,audio/*,video/*">
+<div class="file-field-wrap">
+    <div class="file-field">
+        <label class="file-btn" id="fileBtn" for="audio">
+            <span class="file-icon">
+                <svg viewBox="0 0 24 24" fill="none">
+                    <path d="M12 16V4M12 4l-4 4M12 4l4 4" stroke="#04101f" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+                    <path d="M5 16v3a1 1 0 001 1h12a1 1 0 001-1v-3" stroke="#04101f" stroke-width="2.2" stroke-linecap="round"/>
+                </svg>
+            </span>
+            <span class="file-text">
+                <span class="file-title" id="fileTitle">タップして音源を選択</span>
+                <span class="file-sub" id="fileSub">音声・動画ファイル（動画は音声を抽出）</span>
+            </span>
+        </label>
+        <input id="audio" type="file" accept=".mp3,.wav,.m4a,.aac,.flac,.ogg,.webm,.mp4,.mov,.mkv,.avi,.m4v,audio/*,video/*">
+    </div>
+    <button type="button" id="fileClearBtn" class="file-clear-btn" onclick="clearAudioFile()" style="display:none;" title="音源を削除">✕</button>
 </div>
 
 <!-- 自動取り込み済み通知（MP4などブラウザがデコードできた場合に表示） -->
@@ -1946,6 +1975,9 @@ async function onMicStop(){
             fileTitle.textContent = "🎙 " + recFileName;
             fileSub.textContent = "別のファイルを選ぶにはここをタップ";
             fileBtn.classList.add("has-file");
+            // 削除ボタンも表示
+            const clearBtn = document.getElementById("fileClearBtn");
+            if(clearBtn) clearBtn.style.display = "flex";
         }catch(e){
             // DataTransfer非対応環境（一部iOS）はファイル差し替えをスキップ
             console.warn("DataTransfer not supported:", e);
@@ -2146,6 +2178,9 @@ audioInput.addEventListener("change", () => {
         fileBtn.classList.add("has-file");
         fileTitle.textContent = "🎵 " + f.name;
         fileSub.textContent = "別のファイルを選ぶにはここをタップ";
+        // 削除ボタンを表示
+        const clearBtn = document.getElementById("fileClearBtn");
+        if(clearBtn) clearBtn.style.display = "flex";
         // 取り込みセクション・自動取り込み通知をリセット
         const capSection = document.getElementById("movCaptureSection");
         if(capSection) capSection.style.display = "none";
@@ -2165,8 +2200,57 @@ audioInput.addEventListener("change", () => {
         fileTitle.textContent = "タップして音源を選択";
         fileSub.textContent = "音声・動画ファイル（動画は音声を抽出）";
         document.getElementById("waveformBox").style.display = "none";
+        const clearBtn = document.getElementById("fileClearBtn");
+        if(clearBtn) clearBtn.style.display = "none";
     }
 });
+
+// 音源を削除してすべてリセット
+function clearAudioFile(){
+    // ファイル入力をリセット
+    audioInput.value = "";
+    fileBtn.classList.remove("has-file");
+    fileTitle.textContent = "タップして音源を選択";
+    fileSub.textContent = "音声・動画ファイル（動画は音声を抽出）";
+    const clearBtn = document.getElementById("fileClearBtn");
+    if(clearBtn) clearBtn.style.display = "none";
+
+    // 波形・プレビューをクリア
+    waveDecodedBuf = null;
+    waveAudioDuration = 0;
+    rangeStart = 0; rangeEnd = 0;
+    if(wavePreviewURL){ try{ URL.revokeObjectURL(wavePreviewURL); }catch(e){} wavePreviewURL = null; }
+    const prev = document.getElementById("wavePreviewAudio");
+    if(prev){ prev.src = ""; prev.pause(); }
+    cancelPlayheadLoop();
+    document.getElementById("waveformBox").style.display = "none";
+    const waveArea = document.getElementById("waveformArea");
+    if(waveArea) waveArea.style.display = "none";
+
+    // 各種UIをリセット
+    const autoNotice = document.getElementById("autoDecodeNotice");
+    if(autoNotice) autoNotice.style.display = "none";
+    const capSection = document.getElementById("movCaptureSection");
+    if(capSection) capSection.style.display = "none";
+    const micStatus = document.getElementById("micStatus");
+    if(micStatus) micStatus.style.display = "none";
+
+    // 変換結果・プレイヤーをリセット
+    if(resultUrl){ try{ URL.revokeObjectURL(resultUrl); }catch(e){} resultUrl = null; }
+    const player = document.getElementById("player");
+    if(player){ player.src = ""; player.style.display = "none"; }
+    const downloadLink = document.getElementById("downloadLink");
+    if(downloadLink) downloadLink.style.display = "none";
+    const elapsedResult = document.getElementById("elapsedResult");
+    if(elapsedResult) elapsedResult.style.display = "none";
+    hideDoneBanner();
+
+    // 変換ボタンをリセット
+    convertBtn.disabled = false;
+    convertBtn.textContent = "⚡ 高品質変換する";
+    setStatus("音源を選択してください。", 0);
+    stopElapsed();
+}
 
 // ─── 波形表示・範囲選択 ───
 let waveAudioDuration = 0;   // 音源の長さ（秒）
