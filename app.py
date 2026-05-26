@@ -313,6 +313,13 @@ h1{
 .mov-capture-btn:hover{background:rgba(251,191,36,.2)}
 .mov-capture-btn:active{transform:scale(.98)}
 .mov-capture-btn:disabled{opacity:.5;cursor:not-allowed}
+.mov-capture-btn-alt{
+    margin-top:8px;
+    border-color:var(--line);
+    background:var(--panel-light);
+    color:var(--dim);
+}
+.mov-capture-btn-alt:hover{border-color:#fbbf24;color:#fbbf24;background:rgba(251,191,36,.08)}
 .mov-capture-status{
     margin-top:8px;
     padding:10px;
@@ -971,18 +978,20 @@ a#downloadLink:hover{
             ⚠️ この形式（MOVなど）は波形を表示できませんが、下の「再生」で位置を確認しながら範囲を選べます。変換は問題なくできます。
         </div>
         <div id="movCaptureArea" style="display:none;margin-top:10px;">
-            <button type="button" id="movCaptureBtn" class="mov-capture-btn" onclick="startMovCapture()">🎬 この動画から音声を取り込む（最後まで）</button>
+            <button type="button" id="movCaptureBtnFull" class="mov-capture-btn" onclick="startMovCapture(true)">🎬 最後まで取り込む（途中で止まらない）</button>
+            <button type="button" id="movCaptureBtnStop" class="mov-capture-btn mov-capture-btn-alt" onclick="startMovCapture(false)">🎬 途中で止められる取り込み</button>
             <div id="movCaptureControls" style="display:none;margin-top:8px;">
                 <div style="display:flex;gap:8px;align-items:center;">
                     <button type="button" id="movSoundToggle" class="mov-sub-btn" onclick="toggleCaptureSound()">🔇 無音</button>
-                    <button type="button" id="movCaptureDone" class="mov-sub-btn" onclick="finishMovCapture()">ここまでで確定</button>
+                    <button type="button" id="movCaptureDone" class="mov-sub-btn" onclick="finishMovCapture()" style="display:none;">ここまでで確定</button>
                 </div>
             </div>
             <div id="movCaptureStatus" class="mov-capture-status" style="display:none;"></div>
             <div style="font-size:11px;color:var(--dim);line-height:1.6;margin-top:6px;">
                 ※サーバーには送らず、端末内で動画を再生しながら音声を取り込みます（通信量はかかりません）。<br>
-                ※「最後まで取り込む」と動画の長さぶん時間がかかります。途中まででよければ「ここまでで確定」を押してください。<br>
-                ※取り込み中に音量を変えても、取り込まれる音声には影響しません。
+                ※「最後まで取り込む」は途中で止まらず、誤操作の心配がありません。前半だけ欲しい時は「途中で止められる取り込み」を選んでください。<br>
+                ※取り込み中に音量を変えても、取り込まれる音声には影響しません。<br>
+                ⚠️ 取り込み中は、この画面を開いたままにしてください（他のアプリやタブに移ると止まることがあります）。
             </div>
         </div>
         <div class="wave-player-row">
@@ -1598,24 +1607,33 @@ function showMovCaptureUI(file, prev){
 // 再生キャプチャ実行（ユーザーのタップから呼ぶ）
 // MOVキャプチャの状態（ボタン操作から触れるようモジュールレベルに保持）
 let movCap = null;  // {ctx, media, source, processor, playGain, chunks, channels, url, finished, finalize}
+let movWakeLock = null;  // 画面が消えないようにするWake Lock
 
-async function startMovCapture(){
+async function startMovCapture(canStop){
     const file = (audioInput.files && audioInput.files[0]) ? audioInput.files[0] : null;
     if(!file) return;
 
     const note = document.getElementById("waveNoDecodeNote");
-    const capBtn = document.getElementById("movCaptureBtn");
+    const capBtnFull = document.getElementById("movCaptureBtnFull");
+    const capBtnStop = document.getElementById("movCaptureBtnStop");
     const capStatus = document.getElementById("movCaptureStatus");
     const capControls = document.getElementById("movCaptureControls");
     const soundToggle = document.getElementById("movSoundToggle");
+    const doneBtn = document.getElementById("movCaptureDone");
     const isAudio = file.type.startsWith("audio/");
 
-    capBtn.disabled = true;
-    capBtn.style.display = "none";
+    // 両方の取り込みボタンを隠す
+    if(capBtnFull) capBtnFull.style.display = "none";
+    if(capBtnStop) capBtnStop.style.display = "none";
     capStatus.style.display = "block";
     capStatus.textContent = "音声を取り込んでいます... 0%";
     if(capControls) capControls.style.display = "block";
     if(soundToggle) soundToggle.textContent = "🔇 無音";  // 初期は無音
+    // 「ここまでで確定」は、途中で止められるモードの時だけ表示（誤操作防止）
+    if(doneBtn) doneBtn.style.display = canStop ? "block" : "none";
+
+    // 画面が消えないようにする（Wake Lock。対応端末のみ）
+    requestMovWakeLock();
 
     const url = URL.createObjectURL(file);
     const media = document.createElement(isAudio ? "audio" : "video");
@@ -1710,6 +1728,7 @@ async function startMovCapture(){
 
         try{ if(movCap && movCap.ctx) movCap.ctx.close(); }catch(e){}
         movCap = null;
+        releaseMovWakeLock();
 
         // 成功：波形・範囲選択・抽出を有効化
         if(note) note.style.display = "none";
@@ -1725,11 +1744,37 @@ async function startMovCapture(){
     }catch(err){
         console.warn("MOV capture failed:", err);
         movCap = null;
+        releaseMovWakeLock();
         capStatus.textContent = "❌ 取り込み失敗：" + err.message + "（変換は再生プレビューで範囲指定すれば可能です）";
-        capBtn.disabled = false;
-        capBtn.style.display = "block";
         if(capControls) capControls.style.display = "none";
+        // 取り込みボタンを再表示（やり直せるように）
+        if(capBtnFull) capBtnFull.style.display = "block";
+        if(capBtnStop) capBtnStop.style.display = "block";
     }
+}
+
+// ── Wake Lock（取り込み中に画面が消えないように。対応端末のみ）──
+async function requestMovWakeLock(){
+    try{
+        if("wakeLock" in navigator){
+            movWakeLock = await navigator.wakeLock.request("screen");
+            // 画面が一度消えて復帰した時に取り直す
+            document.addEventListener("visibilitychange", reacquireWakeLock);
+        }
+    }catch(e){ console.warn("wakeLock failed:", e); }
+}
+async function reacquireWakeLock(){
+    try{
+        if(movWakeLock !== null && document.visibilityState === "visible" && "wakeLock" in navigator){
+            movWakeLock = await navigator.wakeLock.request("screen");
+        }
+    }catch(e){}
+}
+function releaseMovWakeLock(){
+    try{
+        document.removeEventListener("visibilitychange", reacquireWakeLock);
+        if(movWakeLock){ movWakeLock.release(); movWakeLock = null; }
+    }catch(e){}
 }
 
 // 「ここまでで確定」：そこまでに取り込んだぶんで波形を作る
