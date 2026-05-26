@@ -329,6 +329,19 @@ h1{
     border-radius:16px;
     animation:sectionPulse 2s ease-in-out infinite;
 }
+/* ── 自動取り込み済み通知 ── */
+.auto-decode-notice{
+    margin-top:16px;
+    padding:14px 16px;
+    background:rgba(34,197,94,.08);
+    border:1.5px solid rgba(34,197,94,.4);
+    border-left:4px solid var(--green);
+    border-radius:12px;
+    color:var(--green-bright);
+    font-size:14px;
+    font-weight:600;
+    line-height:1.8;
+}
 @keyframes sectionPulse{
     0%,100%{box-shadow:0 0 0 0 rgba(251,191,36,0)}
     50%{box-shadow:0 0 18px 2px rgba(251,191,36,.2)}
@@ -1012,6 +1025,12 @@ a#downloadLink:hover{
     <input id="audio" type="file" accept=".mp3,.wav,.m4a,.aac,.flac,.ogg,.webm,.mp4,.mov,.mkv,.avi,.m4v,audio/*,video/*">
 </div>
 
+<!-- 自動取り込み済み通知（MP4などブラウザがデコードできた場合に表示） -->
+<div id="autoDecodeNotice" class="auto-decode-notice" style="display:none;">
+    ✅ <strong>音声を自動で取り込みました</strong><br>
+    <span style="font-size:11px;font-weight:400;">このファイルは読み込み時に音声を自動で取り込んでいます。取り込み作業は不要です。そのまま変換できます。</span>
+</div>
+
 <!-- 動画の音声取り込みセクション（動画ファイルを読み込んだ時だけ表示） -->
 <div id="movCaptureSection" class="mov-capture-section" style="display:none;">
     <label class="field-label">🎬 音声の取り込み / Extract Audio</label>
@@ -1581,9 +1600,11 @@ audioInput.addEventListener("change", () => {
         fileBtn.classList.add("has-file");
         fileTitle.textContent = "🎵 " + f.name;
         fileSub.textContent = "別のファイルを選ぶにはここをタップ";
-        // 取り込みセクションをリセット
+        // 取り込みセクション・自動取り込み通知をリセット
         const capSection = document.getElementById("movCaptureSection");
         if(capSection) capSection.style.display = "none";
+        const autoNotice = document.getElementById("autoDecodeNotice");
+        if(autoNotice) autoNotice.style.display = "none";
         const capRunning = document.getElementById("movCaptureRunning");
         if(capRunning) capRunning.style.display = "none";
         const capStatus = document.getElementById("movCaptureStatus");
@@ -1658,6 +1679,11 @@ async function loadWaveform(file){
         // デコード成功 = 変換できる状態
         convertBtn.disabled = false;
         convertBtn.textContent = "⚡ 高品質変換する";
+        // 自動取り込み済みの通知を表示（MOVの取り込みセクションは隠す）
+        const autoNotice = document.getElementById("autoDecodeNotice");
+        if(autoNotice) autoNotice.style.display = "block";
+        const capSection = document.getElementById("movCaptureSection");
+        if(capSection) capSection.style.display = "none";
         updateRangeUI();
     }catch(e){
         console.warn("ブラウザ直接デコード失敗。MOV用の再生キャプチャ方式に切替:", e);
@@ -1679,6 +1705,8 @@ function showMovCaptureUI(file, prev){
 
     // 取り込みセクションをファイル選択の直下に目立つ形で表示
     if(capSection){ capSection.style.display = "block"; }
+    const autoNotice = document.getElementById("autoDecodeNotice");
+    if(autoNotice) autoNotice.style.display = "none";
 
     // 変換ボタンを無効化（音声取り込みが完了するまで変換不可）
     convertBtn.disabled = true;
