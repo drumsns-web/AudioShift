@@ -342,6 +342,229 @@ h1{
     font-weight:600;
     line-height:1.8;
 }
+
+/* ── 変換履歴 ── */
+.history-section{
+    margin-bottom:16px;
+    padding:16px;
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:16px;
+}
+.history-header{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    margin-bottom:12px;
+}
+.history-clear-btn{
+    padding:6px 12px;
+    border:1px solid var(--line);
+    border-radius:8px;
+    background:transparent;
+    color:var(--dim);
+    font-size:11px;
+    cursor:pointer;
+    transition:all .18s;
+}
+.history-clear-btn:hover{border-color:#ef4444;color:#ef4444}
+.history-list{
+    display:flex;
+    flex-direction:column;
+    gap:8px;
+}
+.history-item{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    padding:10px 12px;
+    background:var(--panel-light);
+    border:1px solid var(--line);
+    border-radius:10px;
+    cursor:pointer;
+    transition:all .18s;
+}
+.history-item:hover{
+    border-color:var(--cyan);
+    background:rgba(34,211,238,.06);
+}
+.history-item:active{transform:scale(.99)}
+.history-icon{font-size:18px;flex-shrink:0}
+.history-info{flex:1;min-width:0}
+.history-name{
+    font-size:13px;
+    font-weight:600;
+    color:var(--text);
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+}
+.history-detail{
+    font-size:11px;
+    color:var(--dim);
+    margin-top:2px;
+}
+.history-apply{
+    font-size:11px;
+    color:var(--cyan);
+    flex-shrink:0;
+    font-weight:600;
+}
+
+/* ── マイク録音 ── */
+.mic-section{
+    margin-bottom:16px;
+    padding:16px;
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:16px;
+}
+.mic-header{margin-bottom:12px}
+.mic-start-btn{
+    width:100%;
+    padding:14px;
+    border:1.5px solid #ef4444;
+    border-radius:12px;
+    background:rgba(239,68,68,.1);
+    color:#ef4444;
+    font-family:'Orbitron',sans-serif;
+    font-size:15px;
+    font-weight:700;
+    cursor:pointer;
+    transition:all .18s;
+}
+.mic-start-btn:hover{background:rgba(239,68,68,.2);box-shadow:0 0 16px rgba(239,68,68,.3)}
+.mic-start-btn:active{transform:scale(.98)}
+.mic-rec-label{
+    font-family:'Orbitron',sans-serif;
+    font-size:14px;
+    font-weight:700;
+    color:#ef4444;
+    animation:recBlink 1s ease-in-out infinite;
+}
+@keyframes recBlink{0%,100%{opacity:1}50%{opacity:.4}}
+.mic-level-wrap{
+    height:10px;
+    background:var(--panel-light);
+    border:1px solid var(--line);
+    border-radius:999px;
+    overflow:hidden;
+    margin-bottom:12px;
+}
+.mic-level-bar{
+    height:100%;
+    width:0%;
+    background:linear-gradient(90deg, #ef4444, #f97316);
+    border-radius:999px;
+    transition:width .08s;
+}
+.mic-stop-btn{
+    width:100%;
+    padding:13px;
+    border:1.5px solid var(--line);
+    border-radius:10px;
+    background:var(--panel-light);
+    color:var(--text);
+    font-family:'Outfit',sans-serif;
+    font-size:14px;
+    font-weight:700;
+    cursor:pointer;
+    transition:all .18s;
+}
+.mic-stop-btn:hover{border-color:var(--cyan);color:var(--cyan)}
+.mic-stop-btn:active{transform:scale(.97)}
+
+/* マイク ON/OFFトグル */
+.mic-onoff-wrap{display:flex;align-items:center;gap:8px}
+.mic-onoff-label{font-size:12px;font-family:'Orbitron',sans-serif;font-weight:700;color:var(--dim);min-width:24px;text-align:right}
+.mic-onoff-btn{
+    position:relative;
+    width:44px;
+    height:24px;
+    border-radius:999px;
+    border:none;
+    background:var(--line);
+    cursor:pointer;
+    transition:background .2s;
+    flex-shrink:0;
+}
+.mic-onoff-btn::after{
+    content:'';
+    position:absolute;
+    top:3px;
+    left:3px;
+    width:18px;
+    height:18px;
+    border-radius:50%;
+    background:#fff;
+    transition:transform .2s;
+}
+.mic-onoff-btn.on{background:var(--green)}
+.mic-onoff-btn.on::after{transform:translateX(20px)}
+
+/* マイク設定エリア */
+.mic-settings{
+    padding:12px;
+    background:var(--panel-light);
+    border:1px solid var(--line);
+    border-radius:10px;
+    margin-top:12px;
+}
+.mic-setting-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.mic-setting-label{font-size:12px;color:var(--dim);width:60px;flex-shrink:0}
+.mic-setting-btns{display:flex;gap:6px}
+.mic-setting-btn{
+    padding:7px 14px;
+    border:1.5px solid var(--line);
+    border-radius:8px;
+    background:transparent;
+    color:var(--dim);
+    font-family:'Outfit',sans-serif;
+    font-size:12px;
+    font-weight:600;
+    cursor:pointer;
+    transition:all .18s;
+}
+.mic-setting-btn:hover{border-color:var(--cyan);color:var(--cyan)}
+.mic-setting-btn.active{
+    border-color:var(--cyan);
+    color:var(--cyan);
+    background:rgba(34,211,238,.1);
+}
+.mic-device-select{
+    flex:1;
+    min-width:0;
+    padding:8px;
+    border:1.5px solid var(--line);
+    border-radius:8px;
+    background:var(--panel);
+    color:var(--text);
+    font-size:12px;
+    cursor:pointer;
+}
+.mic-device-select:focus{outline:none;border-color:var(--cyan)}
+.mic-device-refresh{
+    padding:8px 10px;
+    border:1px solid var(--line);
+    border-radius:8px;
+    background:transparent;
+    color:var(--dim);
+    cursor:pointer;
+    font-size:14px;
+    transition:all .18s;
+    flex-shrink:0;
+}
+.mic-device-refresh:hover{border-color:var(--cyan);color:var(--cyan)}
+.mic-status{
+    margin-top:10px;
+    padding:10px;
+    background:rgba(34,211,238,.06);
+    border:1px solid var(--line);
+    border-radius:8px;
+    font-size:13px;
+    color:var(--cyan-bright);
+    text-align:center;
+}
 @keyframes sectionPulse{
     0%,100%{box-shadow:0 0 0 0 rgba(251,191,36,0)}
     50%{box-shadow:0 0 18px 2px rgba(251,191,36,.2)}
@@ -421,6 +644,7 @@ h1{
     display:flex;
     align-items:center;
     justify-content:center;
+    transform:translateX(-50%);  /* 中央揃え：leftで指定した位置にハンドルの中心を合わせる */
 }
 .wave-handle::after{
     content:'';
@@ -430,8 +654,8 @@ h1{
     border-radius:2px;
     box-shadow:0 0 8px var(--cyan);
 }
-.wave-handle-a{left:0;transform:translateX(-9px)}
-.wave-handle-b{right:0;transform:translateX(9px)}
+.wave-handle-a{left:0}
+.wave-handle-b{left:100%}
 .range-time-row{
     display:flex;
     gap:10px;
@@ -1008,6 +1232,15 @@ a#downloadLink:hover{
 例：1 = 半音上げ / -1 = 半音下げ / 2 = 全音上げ / 0.01 = 1セント微調整
 </p>
 
+<!-- 変換履歴 -->
+<div id="historySection" class="history-section" style="display:none;">
+    <div class="history-header">
+        <label class="field-label" style="margin:0;">🕐 変換履歴 / History</label>
+        <button type="button" class="history-clear-btn" onclick="clearHistory()">すべて削除</button>
+    </div>
+    <div id="historyList" class="history-list"></div>
+</div>
+
 <!-- ファイル選択（押せる感を強調したボタン） -->
 <div class="file-field">
     <label class="file-btn" id="fileBtn" for="audio">
@@ -1029,6 +1262,54 @@ a#downloadLink:hover{
 <div id="autoDecodeNotice" class="auto-decode-notice" style="display:none;">
     ✅ <strong>音声を自動で取り込みました</strong><br>
     <span style="font-size:11px;font-weight:400;">このファイルは読み込み時に音声を自動で取り込んでいます。取り込み作業は不要です。そのまま変換できます。</span>
+</div>
+
+<!-- マイク録音 -->
+<div id="micSection" class="mic-section">
+    <div class="mic-header">
+        <label class="field-label" style="margin:0;">🎙 マイクで録音 / Record</label>
+        <div class="mic-onoff-wrap">
+            <span class="mic-onoff-label" id="micOnOffLabel">OFF</span>
+            <button type="button" id="micOnOffBtn" class="mic-onoff-btn" onclick="toggleMicSection()"></button>
+        </div>
+    </div>
+    <div id="micBody" style="display:none;">
+        <!-- 設定エリア -->
+        <div class="mic-settings">
+            <div class="mic-setting-row">
+                <label class="mic-setting-label">チャンネル</label>
+                <div class="mic-setting-btns">
+                    <button type="button" id="micMonoBtn" class="mic-setting-btn active" onclick="setMicChannel('mono')">モノラル</button>
+                    <button type="button" id="micStereoBtn" class="mic-setting-btn" onclick="setMicChannel('stereo')">ステレオ</button>
+                </div>
+            </div>
+            <div class="mic-setting-row" style="margin-top:10px;">
+                <label class="mic-setting-label">デバイス</label>
+                <select id="micDeviceSelect" class="mic-device-select">
+                    <option value="">デフォルト（内蔵マイク）</option>
+                </select>
+                <button type="button" class="mic-device-refresh" onclick="refreshMicDevices()" title="デバイス一覧を更新">🔄</button>
+            </div>
+        </div>
+        <!-- 録音コントロール -->
+        <div id="micIdle" style="margin-top:12px;">
+            <button type="button" id="micStartBtn" class="mic-start-btn" onclick="startMicRec()">🎙 録音開始</button>
+            <div style="font-size:11px;color:var(--dim);line-height:1.6;margin-top:8px;">
+                ※録音した音声はそのまま移調変換できます。<br>
+                ※マイクの使用許可が必要です（初回のみ確認されます）。<br>
+                ※外部マイク接続時は「デバイス」から選択してください。
+            </div>
+        </div>
+        <div id="micRecording" style="display:none;margin-top:12px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                <span class="mic-rec-label">⏺ 録音中...</span>
+                <span id="micRecTime" style="font-family:'Space Mono',monospace;font-size:14px;color:#ef4444;">0:00</span>
+            </div>
+            <div class="mic-level-wrap"><div id="micLevelBar" class="mic-level-bar"></div></div>
+            <button type="button" class="mic-stop-btn" onclick="stopMicRec()">⏹ 録音停止</button>
+        </div>
+        <div id="micStatus" class="mic-status" style="display:none;margin-top:10px;"></div>
+    </div>
 </div>
 
 <!-- 動画の音声取り込みセクション（動画ファイルを読み込んだ時だけ表示） -->
@@ -1235,7 +1516,7 @@ A4=440Hzの場合：<br>
 
 <div class="time-guide">
     ⏱ <strong>変換時間の目安</strong><br>
-    5分程度の曲で <strong>およそ6〜8分</strong> かかります。曲が長いほど時間がかかります。<br>
+    曲の長さや通信環境・ファイルの大きさによって変換時間は変わります。<br>
     <span class="len-note">📏 <strong>長さの目安：10分以内を推奨</strong>。10分を超えると処理に失敗することがあります（長尺の動画・音源は、必要な部分だけ切り出してからご利用ください）。</span><br>
     <span style="color:var(--dim)">変換中は、他のアプリに切り替えたり画面を消したりしてもOK。完了時に通知音・画面表示でお知らせします。</span><br>
     <span class="warn-note">⚠️ ただし、この画面を更新（リロード）したりタブを閉じたりすると変換が中止されます。変換が終わるまでこのページは閉じないでください。</span>
@@ -1428,7 +1709,272 @@ function stopTitleBlink(){
     document.title = origTitle;
 }
 
-// ─── 経過時間カウンター ───
+// ─── 変換履歴 ───
+const HISTORY_KEY = "audioshift_history";
+const HISTORY_MAX = 10;
+
+function loadHistory(){
+    try{ return JSON.parse(localStorage.getItem(HISTORY_KEY)) || []; }
+    catch(e){ return []; }
+}
+function saveHistory(list){
+    try{ localStorage.setItem(HISTORY_KEY, JSON.stringify(list)); }
+    catch(e){}
+}
+function addHistory(entry){
+    const list = loadHistory();
+    // 同じファイル名・同じ移調量は重複追加しない
+    const dup = list.findIndex(h => h.fileName === entry.fileName && h.semitones === entry.semitones && h.format === entry.format);
+    if(dup !== -1) list.splice(dup, 1);
+    list.unshift(entry);
+    if(list.length > HISTORY_MAX) list.pop();
+    saveHistory(list);
+    renderHistory();
+}
+function clearHistory(){
+    saveHistory([]);
+    renderHistory();
+}
+function renderHistory(){
+    const list = loadHistory();
+    const section = document.getElementById("historySection");
+    const container = document.getElementById("historyList");
+    if(!section || !container) return;
+    if(list.length === 0){ section.style.display = "none"; return; }
+    section.style.display = "block";
+    container.innerHTML = "";
+    list.forEach((h, i) => {
+        const item = document.createElement("div");
+        item.className = "history-item";
+        item.title = "タップで設定を呼び出す";
+        const sign = h.semitones > 0 ? "+" : "";
+        const detail = sign + h.semitones + " 半音 ／ " + h.format.toUpperCase() + " ／ " + h.elapsed + " ／ " + h.date;
+        item.innerHTML =
+            "<span class=\\"history-icon\\">🎵</span>" +
+            "<div class=\\"history-info\\">" +
+                "<div class=\\"history-name\\">" + h.fileName + "</div>" +
+                "<div class=\\"history-detail\\">" + detail + "</div>" +
+            "</div>" +
+            "<span class=\\"history-apply\\">▶ 適用</span>";
+        item.addEventListener("click", () => applyHistory(h));
+        container.appendChild(item);
+    });
+}
+function applyHistory(h){
+    // 移調量をセット
+    const inp = document.getElementById("semitones");
+    if(inp){ inp.value = h.semitones; updatePitchInfo(); }
+    // 出力形式をセット
+    if(h.format === "mp3") setFormat("mp3");
+    else setFormat("wav");
+    // MP3ビットレートをセット
+    if(h.bitrate) setBitrate(h.bitrate);
+    setStatus("🕐 履歴から設定を呼び出しました：" + h.fileName + "（" + (h.semitones > 0 ? "+" : "") + h.semitones + " 半音）", 0);
+}
+
+// 初期化時に履歴を表示
+renderHistory();
+
+// ─── マイク録音 ───
+let micStream = null;
+let micRecorder = null;
+let micChunks = [];
+let micTimerInterval = null;
+let micStartTime = 0;
+let micAnalyser = null;
+let micLevelRAF = null;
+let micChannel = "mono";     // "mono" | "stereo"
+let micSectionOn = false;    // ON/OFFの状態
+
+// ON/OFFトグル
+function toggleMicSection(){
+    micSectionOn = !micSectionOn;
+    const btn = document.getElementById("micOnOffBtn");
+    const label = document.getElementById("micOnOffLabel");
+    const body = document.getElementById("micBody");
+    if(btn){ btn.classList.toggle("on", micSectionOn); }
+    if(label){ label.textContent = micSectionOn ? "ON" : "OFF"; label.style.color = micSectionOn ? "var(--green-bright)" : "var(--dim)"; }
+    if(body){ body.style.display = micSectionOn ? "block" : "none"; }
+    // ONにした時にデバイス一覧を取得
+    if(micSectionOn){ refreshMicDevices(); }
+}
+
+// チャンネル選択（モノラル/ステレオ）
+function setMicChannel(ch){
+    micChannel = ch;
+    document.getElementById("micMonoBtn").classList.toggle("active", ch === "mono");
+    document.getElementById("micStereoBtn").classList.toggle("active", ch === "stereo");
+}
+
+// マイクデバイス一覧を取得して選択肢を更新
+async function refreshMicDevices(){
+    const sel = document.getElementById("micDeviceSelect");
+    if(!sel) return;
+    try{
+        // 一度getUserMediaを呼ぶことで、デバイス名が取れるようになる（iOSはlabelが空のことがある）
+        const tmp = await navigator.mediaDevices.getUserMedia({audio:true}).catch(()=>null);
+        if(tmp) tmp.getTracks().forEach(t=>t.stop());
+
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        const audioInputs = devices.filter(d => d.kind === "audioinput");
+        const currentVal = sel.value;
+        sel.innerHTML = "<option value=\\'\\'>デフォルト（内蔵マイク）</option>";
+        audioInputs.forEach(d => {
+            const opt = document.createElement("option");
+            opt.value = d.deviceId;
+            opt.textContent = d.label || ("マイク " + (audioInputs.indexOf(d) + 1));
+            sel.appendChild(opt);
+        });
+        if(currentVal) sel.value = currentVal;
+    }catch(e){
+        console.warn("デバイス取得失敗:", e);
+    }
+}
+
+async function startMicRec(){
+    const micStatus = document.getElementById("micStatus");
+    const micIdle = document.getElementById("micIdle");
+    const micRecording = document.getElementById("micRecording");
+    const deviceId = document.getElementById("micDeviceSelect")?.value;
+    const isStereo = micChannel === "stereo";
+
+    // getUserMediaの音声制約を設定
+    const audioConstraints = {
+        channelCount: isStereo ? 2 : 1,
+        echoCancellation: !isStereo,  // ステレオはエコキャンセル無効が一般的
+        noiseSuppression: !isStereo,
+        autoGainControl: !isStereo,
+    };
+    if(deviceId){ audioConstraints.deviceId = { exact: deviceId }; }
+
+    try{
+        micStream = await navigator.mediaDevices.getUserMedia({audio: audioConstraints, video: false});
+        micChunks = [];
+        micRecorder = new MediaRecorder(micStream);
+        micRecorder.ondataavailable = e => { if(e.data.size > 0) micChunks.push(e.data); };
+        micRecorder.onstop = onMicStop;
+        micRecorder.start(100);
+        micStartTime = Date.now();
+
+        // 録音時間カウンター
+        micTimerInterval = setInterval(() => {
+            const sec = Math.floor((Date.now() - micStartTime) / 1000);
+            const el = document.getElementById("micRecTime");
+            if(el) el.textContent = fmtMMSS(sec);
+        }, 500);
+
+        // 音量レベルメーター
+        const actx = new (window.AudioContext || window.webkitAudioContext)();
+        const src = actx.createMediaStreamSource(micStream);
+        micAnalyser = actx.createAnalyser();
+        micAnalyser.fftSize = 256;
+        src.connect(micAnalyser);
+        const dataArr = new Uint8Array(micAnalyser.frequencyBinCount);
+        const levelBar = document.getElementById("micLevelBar");
+        const drawLevel = () => {
+            if(!micAnalyser){ return; }
+            micAnalyser.getByteFrequencyData(dataArr);
+            const avg = dataArr.reduce((s,v)=>s+v,0)/dataArr.length;
+            if(levelBar) levelBar.style.width = Math.min(100, avg * 2) + "%";
+            micLevelRAF = requestAnimationFrame(drawLevel);
+        };
+        micLevelRAF = requestAnimationFrame(drawLevel);
+
+        micIdle.style.display = "none";
+        micRecording.style.display = "block";
+        if(micStatus) micStatus.style.display = "none";
+    }catch(e){
+        if(micStatus){
+            micStatus.style.display = "block";
+            micStatus.textContent = "❌ マイクにアクセスできませんでした。ブラウザの設定で許可してください。";
+        }
+    }
+}
+
+function stopMicRec(){
+    if(micRecorder && micRecorder.state !== "inactive"){ micRecorder.stop(); }
+    if(micStream){ micStream.getTracks().forEach(t => t.stop()); micStream = null; }
+    if(micTimerInterval){ clearInterval(micTimerInterval); micTimerInterval = null; }
+    if(micLevelRAF){ cancelAnimationFrame(micLevelRAF); micLevelRAF = null; }
+    micAnalyser = null;
+    const levelBar = document.getElementById("micLevelBar");
+    if(levelBar) levelBar.style.width = "0%";
+}
+
+async function onMicStop(){
+    const micIdle = document.getElementById("micIdle");
+    const micRecording = document.getElementById("micRecording");
+    const micStatus = document.getElementById("micStatus");
+
+    micIdle.style.display = "block";
+    micRecording.style.display = "none";
+
+    if(micChunks.length === 0){
+        if(micStatus){ micStatus.style.display = "block"; micStatus.textContent = "❌ 録音データがありませんでした。"; }
+        return;
+    }
+
+    try{
+        // 録音データをAudioBufferにデコードして波形表示
+        const blob = new Blob(micChunks, {type: micChunks[0].type || "audio/webm"});
+        const arrBuf = await blob.arrayBuffer();
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const audioBuf = await ctx.decodeAudioData(arrBuf.slice(0));
+        try{ ctx.close(); }catch(e){}
+
+        waveDecodedBuf = audioBuf;
+        waveAudioDuration = audioBuf.duration;
+        rangeStart = 0;
+        rangeEnd = waveAudioDuration;
+
+        // プレビュー再生用のURLを作成
+        if(wavePreviewURL){ try{ URL.revokeObjectURL(wavePreviewURL); }catch(e){} }
+        wavePreviewURL = URL.createObjectURL(blob);
+        const prev = document.getElementById("wavePreviewAudio");
+        if(prev){ prev.src = wavePreviewURL; }
+
+        // ファイル名を「録音」に設定（変換時に使う）
+        const recFileName = "録音_" + new Date().toLocaleDateString("ja-JP",{month:"numeric",day:"numeric",hour:"2-digit",minute:"2-digit"}).replace(/\//g,"-").replace(/ /g,"_") + ".wav";
+        // FileオブジェクトとしてaudioInputに差し込む（変換で使うため）
+        const wavBlob = audioBufferToWavBlob(audioBuf);
+        const recFile = new File([wavBlob], recFileName, {type:"audio/wav"});
+        // DataTransferでFileListを差し替え
+        try{
+            const dt = new DataTransfer();
+            dt.items.add(recFile);
+            audioInput.files = dt.files;
+            fileTitle.textContent = "🎙 " + recFileName;
+            fileSub.textContent = "別のファイルを選ぶにはここをタップ";
+            fileBtn.classList.add("has-file");
+        }catch(e){
+            // DataTransfer非対応環境（一部iOS）はファイル差し替えをスキップ
+            console.warn("DataTransfer not supported:", e);
+        }
+
+        // 変換ボタンを有効化
+        convertBtn.disabled = false;
+        convertBtn.textContent = "⚡ 高品質変換する";
+
+        // 自動取り込み通知を表示
+        const autoNotice = document.getElementById("autoDecodeNotice");
+        if(autoNotice){ autoNotice.style.display = "block"; autoNotice.innerHTML = "✅ <strong>録音が完了しました</strong><br><span style=\\"font-size:11px;font-weight:400;\\">録音した音声をそのまま変換できます。</span>"; }
+
+        // 波形を表示
+        const wfBox = document.getElementById("waveformBox");
+        if(wfBox) wfBox.style.display = "block";
+        const waveArea = document.getElementById("waveformArea");
+        if(waveArea){
+            waveArea.style.display = "block";
+            requestAnimationFrame(() => requestAnimationFrame(() => { drawWaveformCanvas(waveDecodedBuf); updateRangeUI(); }));
+        }
+        updateRangeUI();
+
+        if(micStatus){ micStatus.style.display = "block"; micStatus.textContent = "✅ 録音完了！波形が表示されました。そのまま変換できます。"; }
+    }catch(e){
+        console.warn("mic decode failed:", e);
+        if(micStatus){ micStatus.style.display = "block"; micStatus.textContent = "❌ 録音データのデコードに失敗しました。"; }
+    }
+}
 let elapsedTimer = null;
 let elapsedStart = 0;
 let lastElapsedSec = 0;  // 直近の変換にかかった秒数（完了後の表示用）
@@ -1460,7 +2006,7 @@ function updateElapsed(){
     setStatus(
         "🎚 高品質変換中...（Rubber Band R3モード）\\n" +
         "経過時間：" + timeStr + "\\n" +
-        "目安：5分の曲でおよそ6〜8分。\\n" +
+        "目安：曲の長さや通信環境によって変換時間は変わります。\\n" +
         "⚠️ この画面は閉じたり更新したりしないでください（変換が中止されます）。他アプリへの切替や画面オフはOKです。",
         70
     );
@@ -2648,7 +3194,7 @@ convertBtn.addEventListener("click", async () => {
     }
 
     try{
-        setStatus("サーバーへアップロード中...\\n曲が長い場合は少し時間がかかります。\\n目安：5分の曲でおよそ6〜8分。", 30);
+        setStatus("サーバーへアップロード中...\\n曲の長さや通信環境によって変換時間は変わります。", 30);
 
         // 経過時間カウンター開始（変換が終わるまで動き続ける）
         startElapsed();
@@ -2686,6 +3232,16 @@ convertBtn.addEventListener("click", async () => {
         doneBox.style.display = "block";
         doneBox.innerHTML = "⏱ <strong>変換作業にかかった時間</strong>：" + fmtElapsed(lastElapsedSec) +
             "<br><span style=\\"font-size:11px;color:var(--dim)\\">※音源の再生時間ではなく、移調処理が完了するまでの所要時間です</span>";
+
+        // 変換履歴を保存
+        addHistory({
+            fileName: file.name,
+            semitones: parseFloat(semitones),
+            format: outFormat,
+            bitrate: mp3Bitrate,
+            elapsed: fmtElapsed(lastElapsedSec),
+            date: new Date().toLocaleDateString("ja-JP", {month:"numeric", day:"numeric", hour:"2-digit", minute:"2-digit"})
+        });
 
         fireCompletionNotify();
 
