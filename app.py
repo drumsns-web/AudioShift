@@ -1020,8 +1020,8 @@ a#downloadLink:hover{
         取り込みが完了すると、変換ボタンが使えるようになります。
     </div>
     <div id="movCaptureArea">
-        <button type="button" id="movCaptureBtnFull" class="mov-capture-btn" onclick="startMovCapture(true)">🎬 最後まで取り込む（途中で止まらない）</button>
-        <button type="button" id="movCaptureBtnStop" class="mov-capture-btn mov-capture-btn-alt" onclick="startMovCapture(false)">🎬 途中で止められる取り込み</button>
+        <button type="button" id="movCaptureBtnFull" class="mov-capture-btn" onclick="startMovCapture(false)">🎬 最後まで取り込む（途中で止まらない）</button>
+        <button type="button" id="movCaptureBtnStop" class="mov-capture-btn mov-capture-btn-alt" onclick="startMovCapture(true)">🎬 途中で止められる取り込み</button>
 
         <!-- 取り込み中の表示（ボタンを押したら出る） -->
         <div id="movCaptureRunning" style="display:none;margin-top:12px;">
