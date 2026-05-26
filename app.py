@@ -1685,6 +1685,15 @@ async function loadWaveform(file){
         const capSection = document.getElementById("movCaptureSection");
         if(capSection) capSection.style.display = "none";
         updateRangeUI();
+        // 取り込んだ時点で波形を表示（範囲モードに関わらず）
+        const waveArea = document.getElementById("waveformArea");
+        if(waveArea){
+            waveArea.style.display = "block";
+            requestAnimationFrame(() => requestAnimationFrame(() => {
+                drawWaveformCanvas(waveDecodedBuf);
+                updateRangeUI();
+            }));
+        }
     }catch(e){
         console.warn("ブラウザ直接デコード失敗。MOV用の再生キャプチャ方式に切替:", e);
         // MOVなど：サーバーに送らず、ブラウザ内で再生しながら音声をキャプチャする（WaveCut方式）
@@ -2077,13 +2086,23 @@ function setRangeMode(mode){
     rangeMode = mode;
     document.getElementById("rangeFull").classList.toggle("active", mode === "full");
     document.getElementById("rangePart").classList.toggle("active", mode === "part");
-    document.getElementById("waveformArea").style.display = (mode === "part") ? "block" : "none";
+    // 波形エリアは、デコード済みデータがある場合は常に表示する
+    // （取り込んだ時点で波形が見えるようにするため）
+    const waveArea = document.getElementById("waveformArea");
+    if(waveArea){
+        if(waveDecodedBuf){
+            // デコード済みなら常に表示
+            waveArea.style.display = "block";
+        }else{
+            // まだ取り込んでいない場合は範囲選択モードの時だけ表示
+            waveArea.style.display = (mode === "part") ? "block" : "none";
+        }
+    }
     if(mode === "full"){
         rangeStart = 0;
         rangeEnd = waveAudioDuration;
     }else{
-        // 波形エリアが表示された「後」に描画（隠れた状態だとcanvas幅が0になるため）
-        // requestAnimationFrameでレイアウト確定を待ってから描く
+        // 波形エリアが表示された「後」に描画
         if(waveDecodedBuf){
             requestAnimationFrame(() => {
                 requestAnimationFrame(() => {
@@ -2121,8 +2140,15 @@ function updateRangeUI(){
     if(rangeMode === "part"){
         const dur = rangeEnd - rangeStart;
         info.textContent = "選択範囲：" + fmtMMSS(rangeStart) + " 〜 " + fmtMMSS(rangeEnd) + "（" + fmtMMSS(dur) + "ぶん）";
+        sel.style.opacity = "1";
+        ha.style.opacity = "1";
+        hb.style.opacity = "1";
     }else{
-        info.textContent = "選択範囲：全体";
+        info.textContent = "選択範囲：全体（「範囲を選ぶ」で範囲指定できます）";
+        // 曲全体モードでは選択エリアとハンドルを隠す
+        sel.style.opacity = "0";
+        ha.style.opacity = "0";
+        hb.style.opacity = "0";
     }
 }
 
