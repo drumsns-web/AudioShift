@@ -1845,12 +1845,29 @@ async function startMovCapture(canStop){
         // 変換ボタンを有効化（音声取り込み完了）
         convertBtn.disabled = false;
         convertBtn.textContent = "⚡ 高品質変換する";
+        // 波形ボックスを表示（プレビューURLも取り込んだ音声に差し替えて再生できるように）
+        const wfBox = document.getElementById("waveformBox");
+        if(wfBox) wfBox.style.display = "block";
+        // 取り込んだ音声でプレビュー再生できるようにWAV化してURLを差し替え
+        try{
+            if(wavePreviewURL){ URL.revokeObjectURL(wavePreviewURL); wavePreviewURL = null; }
+            const wavBlob = audioBufferToWavBlob(waveDecodedBuf);
+            wavePreviewURL = URL.createObjectURL(wavBlob);
+            const prevEl = document.getElementById("wavePreviewAudio");
+            if(prevEl){ prevEl.src = wavePreviewURL; }
+        }catch(e){ console.warn("preview url rebuild failed:", e); }
         updateRangeUI();
-        if(rangeMode === "part"){
-            requestAnimationFrame(() => requestAnimationFrame(() => { drawWaveformCanvas(waveDecodedBuf); updateRangeUI(); }));
+        // 波形を描画（範囲モードに関わらず、波形エリアを表示して描く）
+        const waveArea = document.getElementById("waveformArea");
+        if(waveArea){
+            waveArea.style.display = "block";
+            requestAnimationFrame(() => requestAnimationFrame(() => {
+                drawWaveformCanvas(waveDecodedBuf);
+                updateRangeUI();
+            }));
         }
-        capStatus.style.display = "block";
-        capStatus.textContent = "✅ 音声の取り込み完了！波形を表示しました。";
+        capStatus.style.display = "none";
+        setStatus("✅ 音声の取り込みが完了しました。\\n下の波形で範囲を選ぶか、そのまま変換できます。", 0);
     }catch(err){
         console.warn("MOV capture failed:", err);
         movCap = null;
