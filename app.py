@@ -297,6 +297,48 @@ h1{
 .extract-audio-btn:hover{background:rgba(34,197,94,.2);box-shadow:0 0 14px rgba(34,197,94,.25)}
 .extract-audio-btn:active{transform:scale(.98)}
 .extract-audio-btn:disabled{opacity:.5;cursor:not-allowed}
+.mov-capture-btn{
+    width:100%;
+    padding:13px;
+    border:1.5px solid #fbbf24;
+    border-radius:10px;
+    background:rgba(251,191,36,.1);
+    color:#fbbf24;
+    font-family:'Outfit',sans-serif;
+    font-size:13px;
+    font-weight:700;
+    cursor:pointer;
+    transition:all .18s;
+}
+.mov-capture-btn:hover{background:rgba(251,191,36,.2)}
+.mov-capture-btn:active{transform:scale(.98)}
+.mov-capture-btn:disabled{opacity:.5;cursor:not-allowed}
+.mov-capture-status{
+    margin-top:8px;
+    padding:10px;
+    background:rgba(5,6,13,.5);
+    border:1px solid var(--line);
+    border-radius:8px;
+    font-size:13px;
+    color:var(--cyan-bright);
+    text-align:center;
+    font-family:'Space Mono',monospace;
+}
+.mov-sub-btn{
+    flex:1;
+    padding:10px;
+    border:1.5px solid var(--line);
+    border-radius:8px;
+    background:var(--panel-light);
+    color:var(--text);
+    font-family:'Outfit',sans-serif;
+    font-size:13px;
+    font-weight:600;
+    cursor:pointer;
+    transition:all .18s;
+}
+.mov-sub-btn:hover{border-color:var(--cyan);color:var(--cyan)}
+.mov-sub-btn:active{transform:scale(.97)}
 .wave-handle{
     position:absolute;
     top:0;
@@ -928,6 +970,21 @@ a#downloadLink:hover{
         <div id="waveNoDecodeNote" style="display:none;font-size:11px;color:#fbbf24;line-height:1.6;margin-top:8px;padding:8px 10px;background:rgba(251,191,36,0.08);border-radius:8px;">
             ⚠️ この形式（MOVなど）は波形を表示できませんが、下の「再生」で位置を確認しながら範囲を選べます。変換は問題なくできます。
         </div>
+        <div id="movCaptureArea" style="display:none;margin-top:10px;">
+            <button type="button" id="movCaptureBtn" class="mov-capture-btn" onclick="startMovCapture()">🎬 この動画から音声を取り込む（最後まで）</button>
+            <div id="movCaptureControls" style="display:none;margin-top:8px;">
+                <div style="display:flex;gap:8px;align-items:center;">
+                    <button type="button" id="movSoundToggle" class="mov-sub-btn" onclick="toggleCaptureSound()">🔇 無音</button>
+                    <button type="button" id="movCaptureDone" class="mov-sub-btn" onclick="finishMovCapture()">ここまでで確定</button>
+                </div>
+            </div>
+            <div id="movCaptureStatus" class="mov-capture-status" style="display:none;"></div>
+            <div style="font-size:11px;color:var(--dim);line-height:1.6;margin-top:6px;">
+                ※サーバーには送らず、端末内で動画を再生しながら音声を取り込みます（通信量はかかりません）。<br>
+                ※「最後まで取り込む」と動画の長さぶん時間がかかります。途中まででよければ「ここまでで確定」を押してください。<br>
+                ※取り込み中に音量を変えても、取り込まれる音声には影響しません。
+            </div>
+        </div>
         <div class="wave-player-row">
             <button type="button" id="wavePlayBtn" class="wave-play-btn" onclick="toggleWavePlay()">▶ 再生</button>
             <button type="button" id="wavePlayRangeBtn" class="wave-play-btn" onclick="playSelectedRange()">▶ 選択範囲を試聴</button>
@@ -1503,37 +1560,196 @@ async function loadWaveform(file){
         if(exBtn){ exBtn.disabled = false; exBtn.textContent = "🎵 この音声をWAVで保存（移調せず抽出）"; }
         updateRangeUI();
     }catch(e){
-        console.warn("waveform decode failed (波形なしで再生プレビューに切替):", e);
-        // デコード失敗（MOVなどブラウザが音声デコードできない形式）：
-        // 波形は出せないが、video要素での再生＋シークで範囲選択は可能にする
-        waveDecodedBuf = null;
-        waveAudioDuration = 0;
-        // 波形が出ないことを案内
-        const note = document.getElementById("waveNoDecodeNote");
-        if(note) note.style.display = "block";
-        // 音声抽出ボタンは波形デコードが必要なので無効化
-        const exBtn = document.getElementById("extractAudioBtn");
-        if(exBtn){ exBtn.disabled = true; exBtn.textContent = "🎵 この形式は音声抽出に非対応"; }
-        // video要素から長さを取得（MOVでもvideoなら取れることが多い）
-        if(prev){
-            const onMeta = function(){
-                prev.removeEventListener("loadedmetadata", onMeta);
-                if(isFinite(prev.duration) && prev.duration > 0){
-                    waveAudioDuration = prev.duration;
-                    rangeStart = 0;
-                    rangeEnd = waveAudioDuration;
-                    updateRangeUI();
-                }
-            };
-            prev.addEventListener("loadedmetadata", onMeta);
-            // すでにメタデータ読み込み済みの場合に備えて
-            if(isFinite(prev.duration) && prev.duration > 0){
+        console.warn("ブラウザ直接デコード失敗。MOV用の再生キャプチャ方式に切替:", e);
+        // MOVなど：サーバーに送らず、ブラウザ内で再生しながら音声をキャプチャする（WaveCut方式）
+        showMovCaptureUI(file, prev);
+    }
+}
+
+// MOV用：再生しながら音声をキャプチャするUIを表示（サーバー不使用・通信量ゼロ）
+function showMovCaptureUI(file, prev){
+    const note = document.getElementById("waveNoDecodeNote");
+    const exBtn = document.getElementById("extractAudioBtn");
+    const capArea = document.getElementById("movCaptureArea");
+
+    waveDecodedBuf = null;
+    waveAudioDuration = 0;
+    if(exBtn){ exBtn.disabled = true; exBtn.textContent = "🎵 音声を準備すると使えます"; }
+    if(note){
+        note.style.display = "block";
+        note.innerHTML = "⚠️ この形式（MOVなど）は、下のボタンで音声を取り込むと波形・範囲選択・抽出が使えます。";
+    }
+    if(capArea){ capArea.style.display = "block"; }
+
+    // video要素から長さだけ先に取得（範囲選択の保険）
+    if(prev){
+        const onMeta = function(){
+            prev.removeEventListener("loadedmetadata", onMeta);
+            if(isFinite(prev.duration) && prev.duration > 0 && waveAudioDuration === 0){
                 waveAudioDuration = prev.duration;
-                rangeStart = 0;
-                rangeEnd = waveAudioDuration;
+                rangeStart = 0; rangeEnd = waveAudioDuration;
                 updateRangeUI();
             }
+        };
+        prev.addEventListener("loadedmetadata", onMeta);
+    }
+}
+
+// 再生キャプチャ実行（ユーザーのタップから呼ぶ）
+// MOVキャプチャの状態（ボタン操作から触れるようモジュールレベルに保持）
+let movCap = null;  // {ctx, media, source, processor, playGain, chunks, channels, url, finished, finalize}
+
+async function startMovCapture(){
+    const file = (audioInput.files && audioInput.files[0]) ? audioInput.files[0] : null;
+    if(!file) return;
+
+    const note = document.getElementById("waveNoDecodeNote");
+    const capBtn = document.getElementById("movCaptureBtn");
+    const capStatus = document.getElementById("movCaptureStatus");
+    const capControls = document.getElementById("movCaptureControls");
+    const soundToggle = document.getElementById("movSoundToggle");
+    const isAudio = file.type.startsWith("audio/");
+
+    capBtn.disabled = true;
+    capBtn.style.display = "none";
+    capStatus.style.display = "block";
+    capStatus.textContent = "音声を取り込んでいます... 0%";
+    if(capControls) capControls.style.display = "block";
+    if(soundToggle) soundToggle.textContent = "🔇 無音";  // 初期は無音
+
+    const url = URL.createObjectURL(file);
+    const media = document.createElement(isAudio ? "audio" : "video");
+    media.src = url;
+    media.preload = "auto";
+    media.playsInline = true;
+    media.muted = false;
+
+    try{
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        if(ctx.state === "suspended"){ await ctx.resume(); }
+
+        await new Promise((resolve, reject) => {
+            const channels = 2;
+            const chunks = [[], []];
+            let source = null, processor = null, playGain = null;
+            let finished = false;
+
+            const cleanup = () => {
+                try{ if(processor) processor.disconnect(); }catch(e){}
+                try{ if(source) source.disconnect(); }catch(e){}
+                try{ if(playGain) playGain.disconnect(); }catch(e){}
+                try{ media.pause(); }catch(e){}
+                try{ URL.revokeObjectURL(url); }catch(e){}
+            };
+
+            // 取り込んだチャンクからAudioBufferを組み立てて確定
+            const finalize = () => {
+                if(finished) return;
+                finished = true;
+                if(movCap) movCap.finished = true;
+                const total = chunks[0].reduce((s,a)=>s+a.length, 0);
+                cleanup();
+                if(total === 0){ reject(new Error("音声を取り込めませんでした")); return; }
+                const buf = ctx.createBuffer(channels, total, ctx.sampleRate);
+                for(let ch=0; ch<channels; ch++){
+                    const out = buf.getChannelData(ch);
+                    let off = 0;
+                    for(const arr of chunks[ch]){ out.set(arr, off); off += arr.length; }
+                }
+                waveDecodedBuf = buf;
+                waveAudioDuration = buf.duration;
+                rangeStart = 0; rangeEnd = waveAudioDuration;
+                resolve();
+            };
+
+            media.onerror = () => { if(!finished){ finished = true; cleanup(); reject(new Error("この動画を再生できませんでした")); } };
+
+            media.onloadedmetadata = async () => {
+                try{
+                    source = ctx.createMediaElementSource(media);
+                    processor = ctx.createScriptProcessor(4096, channels, channels);
+                    // 再生経路：スピーカーに送る音量（ここだけ切替）。初期は無音。
+                    // 録音は onaudioprocess の入力から直接拾うので、この音量を変えても録音には影響しない。
+                    playGain = ctx.createGain();
+                    playGain.gain.value = 0;
+
+                    source.connect(processor);
+                    processor.connect(playGain);   // 再生音量はplayGainで制御
+                    playGain.connect(ctx.destination);
+
+                    // モジュールに状態を保存（ボタン操作用）
+                    movCap = { ctx, media, source, processor, playGain, chunks, channels, url, finished:false, finalize };
+
+                    processor.onaudioprocess = (ev) => {
+                        const input = ev.inputBuffer;
+                        // 録音は入力をそのまま保存（フル音量。playGainの値に関係なく完全）
+                        for(let ch=0; ch<channels; ch++){
+                            const sc = Math.min(ch, input.numberOfChannels - 1);
+                            chunks[ch].push(new Float32Array(input.getChannelData(sc)));
+                        }
+                        // 出力（再生音）には入力をそのままコピー（playGainで音量調整される）
+                        for(let ch=0; ch<ev.outputBuffer.numberOfChannels; ch++){
+                            const sc = Math.min(ch, input.numberOfChannels - 1);
+                            ev.outputBuffer.getChannelData(ch).set(input.getChannelData(sc));
+                        }
+                        const dur = media.duration;
+                        if(dur && isFinite(dur)){
+                            const pct = Math.min(100, Math.round((media.currentTime / dur) * 100));
+                            capStatus.textContent = "音声を取り込んでいます... " + pct + "%（「ここまでで確定」でも止められます）";
+                        }
+                    };
+
+                    media.onended = () => { finalize(); };  // 最後まで再生＝全体を確定
+
+                    media.currentTime = 0;
+                    await media.play();
+                }catch(err){ if(!finished){ finished = true; cleanup(); reject(err); } }
+            };
+            media.load();
+        });
+
+        try{ if(movCap && movCap.ctx) movCap.ctx.close(); }catch(e){}
+        movCap = null;
+
+        // 成功：波形・範囲選択・抽出を有効化
+        if(note) note.style.display = "none";
+        const capArea = document.getElementById("movCaptureArea");
+        if(capArea) capArea.style.display = "none";
+        const exBtn = document.getElementById("extractAudioBtn");
+        if(exBtn){ exBtn.disabled = false; exBtn.textContent = "🎵 この音声をWAVで保存（移調せず抽出）"; }
+        updateRangeUI();
+        if(rangeMode === "part"){
+            requestAnimationFrame(() => requestAnimationFrame(() => { drawWaveformCanvas(waveDecodedBuf); updateRangeUI(); }));
         }
+        capStatus.textContent = "✅ 音声の取り込み完了";
+    }catch(err){
+        console.warn("MOV capture failed:", err);
+        movCap = null;
+        capStatus.textContent = "❌ 取り込み失敗：" + err.message + "（変換は再生プレビューで範囲指定すれば可能です）";
+        capBtn.disabled = false;
+        capBtn.style.display = "block";
+        if(capControls) capControls.style.display = "none";
+    }
+}
+
+// 「ここまでで確定」：そこまでに取り込んだぶんで波形を作る
+function finishMovCapture(){
+    if(movCap && !movCap.finished && movCap.finalize){
+        movCap.finalize();
+    }
+}
+
+// 「🔊聞く / 🔇無音」トグル（再生音量だけ変更。取り込みには影響しない）
+function toggleCaptureSound(){
+    const btn = document.getElementById("movSoundToggle");
+    if(!movCap || !movCap.playGain){ return; }
+    const isOn = movCap.playGain.gain.value > 0;
+    if(isOn){
+        movCap.playGain.gain.value = 0;
+        if(btn) btn.textContent = "🔇 無音";
+    }else{
+        movCap.playGain.gain.value = 1;
+        if(btn) btn.textContent = "🔊 聞く";
     }
 }
 
