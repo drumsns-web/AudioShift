@@ -1047,11 +1047,12 @@ a#downloadLink:hover{
         </div>
 
         <div id="movCaptureStatus" class="mov-capture-status" style="display:none;margin-top:8px;"></div>
-        <div style="font-size:11px;color:var(--dim);line-height:1.6;margin-top:8px;">
+        <div style="font-size:11px;color:var(--dim);line-height:1.8;margin-top:8px;">
             ※サーバーには送らず、端末内で動画を再生しながら音声を取り込みます（通信量はかかりません）。<br>
             ※「最後まで取り込む」は途中で止まらず、誤操作の心配がありません。前半だけ欲しい時は「途中で止められる取り込み」を選んでください。<br>
             ※取り込み中に音量を変えても、取り込まれる音声には影響しません。<br>
-            ⚠️ 取り込み中は、この画面を開いたままにしてください（他のアプリやタブに移ると止まることがあります）。
+            <span style="color:#fbbf24;">⏱ 取り込みには動画と同じ長さの時間がかかります（例：5分の動画なら約5分）。長尺の動画（10分以上）はメモリ不足になる可能性があるため、PCでの作業を推奨します。</span><br>
+            <span style="color:#fbbf24;">⚠️ 取り込み中は端末をそのままにしてください。他のアプリへの切り替え・別タブへの移動・通話の着信などがあると取り込みが失敗することがあります。取り込みが終わるまでお待ちください。</span>
         </div>
     </div>
 </div>
