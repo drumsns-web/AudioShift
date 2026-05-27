@@ -436,6 +436,64 @@ h1{
     flex-shrink:0;
     font-weight:600;
 }
+.history-actions{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    flex-shrink:0;
+}
+.history-del-btn{
+    width:26px;
+    height:26px;
+    border:1px solid rgba(239,68,68,.4);
+    border-radius:6px;
+    background:transparent;
+    color:#ef4444;
+    font-size:12px;
+    cursor:pointer;
+    transition:all .15s;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    flex-shrink:0;
+}
+.history-del-btn:hover{background:rgba(239,68,68,.15);border-color:#ef4444}
+.history-del-btn:active{transform:scale(.9)}
+
+/* ── データ管理 ── */
+.storage-info{
+    font-size:12px;
+    color:var(--dim);
+    margin:8px 0 12px;
+    padding:8px 10px;
+    background:var(--panel-light);
+    border-radius:8px;
+    font-family:'Space Mono',monospace;
+}
+.storage-btns{
+    display:flex;
+    gap:8px;
+    flex-wrap:wrap;
+}
+.storage-btn{
+    flex:1;
+    min-width:140px;
+    padding:10px 12px;
+    border:1.5px solid var(--line);
+    border-radius:10px;
+    background:transparent;
+    color:var(--dim);
+    font-family:'Outfit',sans-serif;
+    font-size:12px;
+    font-weight:600;
+    cursor:pointer;
+    transition:all .18s;
+    text-align:center;
+}
+.storage-btn:hover{border-color:var(--cyan);color:var(--cyan)}
+.storage-btn:active{transform:scale(.97)}
+.storage-btn-danger{border-color:rgba(239,68,68,.4);color:#ef4444}
+.storage-btn-danger:hover{border-color:#ef4444;background:rgba(239,68,68,.1);box-shadow:0 0 10px rgba(239,68,68,.2)}
 
 /* ── マイク録音 ── */
 .mic-section{
@@ -1261,8 +1319,11 @@ a#downloadLink:hover{
 <!-- 変換履歴 -->
 <div id="historySection" class="history-section" style="display:none;">
     <div class="history-header">
-        <label class="field-label" style="margin:0;">🕐 変換履歴 / History</label>
-        <button type="button" class="history-clear-btn" onclick="clearHistory()">すべて削除</button>
+        <div>
+            <label class="field-label" style="margin:0;">🕐 変換履歴 / History</label>
+            <div style="font-size:11px;color:var(--dim);margin-top:3px;">タップすると移調量・形式などの設定が呼び出されます</div>
+        </div>
+        <button type="button" class="history-clear-btn" onclick="clearHistoryData()">すべて削除</button>
     </div>
     <div id="historyList" class="history-list"></div>
 </div>
@@ -1543,6 +1604,19 @@ A4=440Hzの場合：<br>
     </div>
 </div>
 
+<div class="format-box" id="dataManageBox">
+    <label class="field-label">🗂 データ管理 / Storage</label>
+    <div id="storageInfo" class="storage-info"></div>
+    <div class="storage-btns">
+        <button type="button" class="storage-btn" onclick="clearHistoryData()">🕐 変換履歴を削除</button>
+        <button type="button" class="storage-btn storage-btn-danger" onclick="clearAllStorage()">🗑 LocalStorageをすべてクリア</button>
+    </div>
+    <div style="font-size:11px;color:var(--dim);line-height:1.6;margin-top:10px;">
+        ※スマホのブラウザは保存容量に制限があります。動作が重くなった場合や、保存エラーが出た場合はクリアしてください。<br>
+        ※「すべてクリア」すると変換履歴も削除されます。設定（通知音の種類など）はページを開き直すと初期値に戻ります。
+    </div>
+</div>
+
 <div class="time-guide">
     ⏱ <strong>変換時間の目安</strong><br>
     曲の長さや通信環境・ファイルの大きさによって変換時間は変わります。<br>
@@ -1784,8 +1858,18 @@ function renderHistory(){
                 "<div class=\\"history-name\\">" + h.fileName + "</div>" +
                 "<div class=\\"history-detail\\">" + detail + "</div>" +
             "</div>" +
-            "<span class=\\"history-apply\\">▶ 適用</span>";
+            "<div class=\\"history-actions\\">" +
+                "<span class=\\"history-apply\\">設定を呼出</span>" +
+                "<button type=\\"button\\" class=\\"history-del-btn\\" title=\\"この履歴を削除\\">✕</button>" +
+            "</div>";
+        // 適用（アイテム全体クリック）
         item.addEventListener("click", () => applyHistory(h));
+        // 個別削除ボタン（クリックが親に伝わらないようにstopPropagation）
+        const delBtn = item.querySelector(".history-del-btn");
+        delBtn.addEventListener("click", (e) => {
+            e.stopPropagation();
+            deleteHistoryItem(i);
+        });
         container.appendChild(item);
     });
 }
@@ -1801,8 +1885,58 @@ function applyHistory(h){
     setStatus("🕐 履歴から設定を呼び出しました：" + h.fileName + "（" + (h.semitones > 0 ? "+" : "") + h.semitones + " 半音）", 0);
 }
 
-// 初期化時に履歴を表示
+function deleteHistoryItem(index){
+    const list = loadHistory();
+    if(index < 0 || index >= list.length) return;
+    list.splice(index, 1);
+    saveHistory(list);
+    renderHistory();
+    updateStorageInfo();
+}
+
+// 初期化時に履歴と使用量を表示
 renderHistory();
+
+// ─── データ管理（LocalStorage使用量表示・クリア）───
+function updateStorageInfo(){
+    const info = document.getElementById("storageInfo");
+    if(!info) return;
+    try{
+        let total = 0;
+        for(let i=0; i<localStorage.length; i++){
+            const key = localStorage.key(i);
+            const val = localStorage.getItem(key) || "";
+            total += key.length + val.length;
+        }
+        const kb = (total * 2 / 1024).toFixed(1);
+        const histLen = loadHistory().length;
+        info.textContent = "使用中：約 " + kb + " KB　／　変換履歴：" + histLen + " 件";
+    }catch(e){
+        info.textContent = "使用量の取得に失敗しました";
+    }
+}
+function clearHistoryData(){
+    if(!confirm("変換履歴をすべて削除しますか？")) return;
+    clearHistory();
+    updateStorageInfo();
+}
+function clearAllStorage(){
+    const histLen = loadHistory().length;
+    const msg = "⚠️ LocalStorageをすべて削除します。\\n\\n" +
+        "・変換履歴（現在 " + histLen + " 件）もすべて消えます。\\n" +
+        "・削除後は元に戻せません。\\n\\n" +
+        "よろしいですか？";
+    if(!confirm(msg)) return;
+    try{
+        localStorage.clear();
+        renderHistory();
+        updateStorageInfo();
+        setStatus("LocalStorageをクリアしました。", 0);
+    }catch(e){
+        alert("クリアに失敗しました。");
+    }
+}
+updateStorageInfo();
 
 // ─── マイク録音 ───
 let micStream = null;
@@ -3326,6 +3460,7 @@ convertBtn.addEventListener("click", async () => {
             elapsed: fmtElapsed(lastElapsedSec),
             date: new Date().toLocaleDateString("ja-JP", {month:"numeric", day:"numeric", hour:"2-digit", minute:"2-digit"})
         });
+        updateStorageInfo();
 
         fireCompletionNotify();
 
