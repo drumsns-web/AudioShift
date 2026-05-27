@@ -100,6 +100,69 @@ body::after{
     object-fit:cover;
     box-shadow:0 0 22px rgba(34,211,238,.45);
 }
+
+/* ── Rubber Band R3 バッジ＆ツールチップ ── */
+.rb3-badge{
+    display:inline-flex;
+    align-items:center;
+    position:relative;
+    margin-left:8px;
+    padding:2px 8px;
+    background:rgba(34,211,238,.15);
+    border:1px solid rgba(34,211,238,.4);
+    border-radius:999px;
+    font-size:10px;
+    font-family:'Orbitron',sans-serif;
+    font-weight:700;
+    color:var(--cyan-bright);
+    cursor:pointer;
+    vertical-align:middle;
+    user-select:none;
+    outline:none;
+}
+.rb3-badge:hover .rb3-tooltip,
+.rb3-badge:focus .rb3-tooltip,
+.rb3-badge.open .rb3-tooltip{
+    opacity:1;
+    visibility:visible;
+    transform:translateX(-50%) translateY(0);
+}
+.rb3-tooltip{
+    position:absolute;
+    top:calc(100% + 10px);
+    left:50%;
+    transform:translateX(-50%) translateY(-6px);
+    width:260px;
+    padding:12px 14px;
+    background:#0d1326;
+    border:1px solid var(--cyan);
+    border-radius:12px;
+    box-shadow:0 8px 32px rgba(0,0,0,.6);
+    font-size:12px;
+    font-family:'Outfit',sans-serif;
+    font-weight:400;
+    color:#cdd6ee;
+    line-height:1.7;
+    text-align:left;
+    opacity:0;
+    visibility:hidden;
+    transition:opacity .2s, transform .2s;
+    z-index:200;
+    pointer-events:none;
+    white-space:normal;
+}
+.rb3-tooltip::before{
+    content:'';
+    position:absolute;
+    top:-6px;
+    left:50%;
+    transform:translateX(-50%);
+    width:0;height:0;
+    border-left:6px solid transparent;
+    border-right:6px solid transparent;
+    border-bottom:6px solid var(--cyan);
+}
+.rb3-tooltip strong{color:var(--cyan-bright)}
 h1{
     font-family:'Orbitron',sans-serif;
     font-weight:900;
@@ -1465,7 +1528,16 @@ a#downloadLink:hover{
     <img class="app-icon" src="/static/icon.png" alt="AudioShift icon">
     <div>
         <h1>AudioShift HQ</h1>
-        <p class="small">高品質移調ツール</p>
+        <p class="small">高品質移調ツール
+            <span class="rb3-badge" tabindex="0">Rubber Band R3
+                <span class="rb3-tooltip">
+                    <strong>Rubber Band R3とは？</strong><br>
+                    音声の移調（キー変換）に使われる高品質な処理エンジンです。<br>
+                    R3は最高品質モードで、ボーカルや楽器の音を自然に保ちながら移調します。
+                    処理に時間がかかりますが、機械的な不自然さが少なく、音楽的に聴きやすい仕上がりになります。
+                </span>
+            </span>
+        </p>
     </div>
 </div>
 
@@ -2138,7 +2210,19 @@ function clearAllStorage(){
 }
 updateStorageInfo();
 
-// フローティング変換ボタンの表示制御
+// ─── Rubber Band R3 バッジのタップ対応 ───
+(function(){
+    const badge = document.querySelector(".rb3-badge");
+    if(!badge) return;
+    badge.addEventListener("click", (e) => {
+        e.stopPropagation();
+        badge.classList.toggle("open");
+    });
+    // 外側をタップしたら閉じる
+    document.addEventListener("click", () => {
+        badge.classList.remove("open");
+    });
+})();
 function updateFloatBtn(){
     const wrap = document.getElementById("floatConvertWrap");
     const floatBtn = document.getElementById("floatConvertBtn");
