@@ -80,6 +80,7 @@ body::after{
     background:linear-gradient(180deg, rgba(18,26,53,.7), rgba(13,19,38,.85));
     border:1px solid var(--line);
     padding:26px;
+    padding-bottom:100px; /* フローティングボタンに隠れないよう余白を確保 */
     border-radius:22px;
     backdrop-filter:blur(12px);
     -webkit-backdrop-filter:blur(12px);
@@ -1002,6 +1003,49 @@ input[type="range"]::-moz-range-thumb{
 .preset-save-btn:hover{background:rgba(34,211,238,.2)}
 .preset-save-btn:active{transform:scale(.97)}
 
+/* ── フローティング変換ボタン ── */
+.float-convert-wrap{
+    position:fixed;
+    bottom:0;
+    left:0;
+    right:0;
+    z-index:1000;
+    padding:12px 16px;
+    padding-bottom:calc(12px + env(safe-area-inset-bottom)); /* iPhoneのホームバー対応 */
+    background:linear-gradient(transparent, var(--bg) 40%);
+    pointer-events:none;
+}
+.float-convert-btn{
+    display:block;
+    width:100%;
+    max-width:600px;
+    margin:0 auto;
+    padding:16px;
+    border:none;
+    border-radius:16px;
+    background:linear-gradient(135deg, var(--cyan), var(--blue));
+    color:#04101f;
+    font-family:'Orbitron',sans-serif;
+    font-size:16px;
+    font-weight:700;
+    cursor:pointer;
+    pointer-events:auto;
+    box-shadow:0 4px 24px rgba(34,211,238,.4);
+    transition:all .18s;
+    letter-spacing:.05em;
+}
+.float-convert-btn:hover{
+    box-shadow:0 6px 32px rgba(34,211,238,.6);
+    transform:translateY(-1px);
+}
+.float-convert-btn:active{transform:translateY(0) scale(.99)}
+.float-convert-btn:disabled{
+    opacity:.5;
+    cursor:not-allowed;
+    transform:none;
+    box-shadow:none;
+}
+
 /* ── 自動ピッチ判定 ── */
 .detect-btn{
     width:100%;
@@ -1784,6 +1828,13 @@ A4=440Hzの場合：<br>
 </div>
 </div>
 
+<!-- フローティング変換ボタン（ファイル選択後に常時表示） -->
+<div id="floatConvertWrap" class="float-convert-wrap" style="display:none;">
+    <button id="floatConvertBtn" class="float-convert-btn" onclick="document.getElementById('convertBtn').click()">
+        ⚡ 高品質変換する
+    </button>
+</div>
+
 <script>
 const audioInput = document.getElementById("audio");
 const semitonesInput = document.getElementById("semitones");
@@ -2087,7 +2138,22 @@ function clearAllStorage(){
 }
 updateStorageInfo();
 
-// ─── プリセット ───
+// フローティング変換ボタンの表示制御
+function updateFloatBtn(){
+    const wrap = document.getElementById("floatConvertWrap");
+    const floatBtn = document.getElementById("floatConvertBtn");
+    if(!wrap || !floatBtn) return;
+    const hasFile = audioInput.files && audioInput.files[0];
+    const isDisabled = convertBtn.disabled;
+    // ファイルが選ばれていれば表示
+    wrap.style.display = hasFile ? "block" : "none";
+    floatBtn.disabled = isDisabled;
+    floatBtn.textContent = convertBtn.textContent;
+}
+
+// convertBtnの状態変更をフローティングボタンに反映するためのObserver
+const convertBtnObserver = new MutationObserver(() => { updateFloatBtn(); });
+convertBtnObserver.observe(convertBtn, { attributes:true, characterData:true, childList:true, subtree:true });
 const PRESET_KEY = "audioshift_presets";
 
 function loadPresets(){
@@ -2387,6 +2453,7 @@ async function onMicStop(){
             // 削除ボタンも表示
             const clearBtn = document.getElementById("fileClearBtn");
             if(clearBtn) clearBtn.style.display = "flex";
+            updateFloatBtn();
         }catch(e){
             // DataTransfer非対応環境（一部iOS）はファイル差し替えをスキップ
             console.warn("DataTransfer not supported:", e);
@@ -2590,6 +2657,7 @@ audioInput.addEventListener("change", () => {
         // 削除ボタンを表示
         const clearBtn = document.getElementById("fileClearBtn");
         if(clearBtn) clearBtn.style.display = "flex";
+        updateFloatBtn();
         // 取り込みセクション・自動取り込み通知をリセット
         const capSection = document.getElementById("movCaptureSection");
         if(capSection) capSection.style.display = "none";
@@ -2623,6 +2691,9 @@ function clearAudioFile(){
     fileSub.textContent = "音声・動画ファイル（動画は音声を抽出）";
     const clearBtn = document.getElementById("fileClearBtn");
     if(clearBtn) clearBtn.style.display = "none";
+    // フローティングボタンを非表示
+    const floatWrap = document.getElementById("floatConvertWrap");
+    if(floatWrap) floatWrap.style.display = "none";
 
     // 波形・プレビューをクリア
     waveDecodedBuf = null;
