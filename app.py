@@ -935,6 +935,73 @@ input[type="range"]::-moz-range-thumb{
 }
 .tune-apply-btn:active{transform:scale(.98)}
 
+/* ── プリセット ── */
+.preset-list{
+    display:flex;
+    flex-direction:column;
+    gap:8px;
+    margin-bottom:12px;
+}
+.preset-item{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    padding:10px 12px;
+    background:var(--panel-light);
+    border:1px solid var(--line);
+    border-radius:10px;
+    cursor:pointer;
+    transition:all .18s;
+}
+.preset-item:hover{border-color:var(--cyan);background:rgba(34,211,238,.06)}
+.preset-item:active{transform:scale(.99)}
+.preset-info{flex:1;min-width:0}
+.preset-name{font-size:13px;font-weight:600;color:var(--text)}
+.preset-detail{font-size:11px;color:var(--dim);margin-top:2px}
+.preset-apply{font-size:11px;color:var(--cyan);font-weight:600;flex-shrink:0}
+.preset-del{
+    width:24px;height:24px;
+    border:1px solid rgba(239,68,68,.4);
+    border-radius:6px;
+    background:transparent;
+    color:#ef4444;
+    font-size:11px;
+    cursor:pointer;
+    transition:all .15s;
+    flex-shrink:0;
+}
+.preset-del:hover{background:rgba(239,68,68,.15);border-color:#ef4444}
+.preset-save-row{
+    display:flex;
+    gap:8px;
+}
+.preset-name-input{
+    flex:1;
+    padding:10px 12px;
+    border:1.5px solid var(--line);
+    border-radius:10px;
+    background:var(--panel-light);
+    color:var(--text);
+    font-size:13px;
+    font-family:'Outfit',sans-serif;
+}
+.preset-name-input:focus{outline:none;border-color:var(--cyan)}
+.preset-save-btn{
+    padding:10px 16px;
+    border:1.5px solid var(--cyan);
+    border-radius:10px;
+    background:rgba(34,211,238,.1);
+    color:var(--cyan);
+    font-family:'Outfit',sans-serif;
+    font-size:13px;
+    font-weight:700;
+    cursor:pointer;
+    white-space:nowrap;
+    transition:all .18s;
+}
+.preset-save-btn:hover{background:rgba(34,211,238,.2)}
+.preset-save-btn:active{transform:scale(.97)}
+
 /* ── 自動ピッチ判定 ── */
 .detect-btn{
     width:100%;
@@ -1165,6 +1232,56 @@ input[type="range"]::-moz-range-thumb{
 }
 .elapsed-result strong{color:var(--green-bright)}
 
+/* ── A/B聴き比べ ── */
+.ab-compare-box{
+    margin-top:16px;
+    padding:16px;
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:16px;
+}
+.ab-btns{
+    display:flex;
+    gap:10px;
+}
+.ab-btn{
+    flex:1;
+    padding:14px;
+    border:2px solid var(--line);
+    border-radius:12px;
+    background:var(--panel-light);
+    cursor:pointer;
+    transition:all .18s;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:4px;
+}
+.ab-btn:active{transform:scale(.97)}
+.ab-label{
+    font-family:'Orbitron',sans-serif;
+    font-size:22px;
+    font-weight:700;
+    color:var(--dim);
+}
+.ab-desc{
+    font-size:11px;
+    color:var(--dim);
+    font-weight:600;
+}
+.ab-btn-a.active{
+    border-color:var(--cyan);
+    background:rgba(34,211,238,.1);
+}
+.ab-btn-a.active .ab-label,
+.ab-btn-a.active .ab-desc{ color:var(--cyan); }
+.ab-btn-b.active{
+    border-color:var(--green);
+    background:rgba(34,197,94,.1);
+}
+.ab-btn-b.active .ab-label,
+.ab-btn-b.active .ab-desc{ color:var(--green-bright); }
+
 /* ── 完了バナー（画面上部に固定）── */
 .done-banner{
     position:fixed;
@@ -1350,7 +1467,8 @@ a#downloadLink:hover{
 
 <!-- 自動取り込み済み通知（MP4などブラウザがデコードできた場合に表示） -->
 <div id="autoDecodeNotice" class="auto-decode-notice" style="display:none;">
-    ✅ <strong>音声を自動で取り込みました</strong><br>
+    ✅ <strong>音声を自動で取り込みました</strong>
+    <span id="audioFileInfo" style="font-size:11px;font-weight:400;color:var(--green-bright);margin-left:8px;"></span><br>
     <span style="font-size:11px;font-weight:400;">このファイルは読み込み時に音声を自動で取り込んでいます。取り込み作業は不要です。そのまま変換できます。</span>
 </div>
 
@@ -1536,6 +1654,19 @@ a#downloadLink:hover{
     <button type="button" id="tuneApplyBtn" class="tune-apply-btn" onclick="applyTuning()">この移調量を適用する</button>
 </div>
 
+<!-- プリセット -->
+<div class="format-box">
+    <label class="field-label">⭐ プリセット / Preset</label>
+    <div style="font-size:11px;color:var(--dim);line-height:1.6;margin-bottom:12px;">
+        現在の設定（移調量・出力形式・ビットレート）に名前をつけて保存できます。よく使う設定をすぐに呼び出せます。
+    </div>
+    <div id="presetList" class="preset-list"></div>
+    <div class="preset-save-row">
+        <input type="text" id="presetNameInput" class="preset-name-input" placeholder="プリセット名（例：レイラ用・バンド練習用）" maxlength="30">
+        <button type="button" class="preset-save-btn" onclick="savePreset()">保存</button>
+    </div>
+</div>
+
 <div id="pitchInfo" class="info">
 <strong>移調量の説明</strong><br>
 1 = 半音 = 100セント<br>
@@ -1634,6 +1765,23 @@ A4=440Hzの場合：<br>
 
 <audio id="player" controls style="display:none;"></audio>
 <a id="downloadLink" style="display:none;" download>⬇ 変換後ファイルをダウンロード</a>
+
+<!-- A/B聴き比べ -->
+<div id="abCompareBox" class="ab-compare-box" style="display:none;">
+    <label class="field-label" style="margin-bottom:10px;">🔄 A/B 聴き比べ</label>
+    <div class="ab-btns">
+        <button type="button" id="abBtnA" class="ab-btn ab-btn-a active" onclick="switchAB('a')">
+            <span class="ab-label">A</span>
+            <span class="ab-desc">元音源</span>
+        </button>
+        <button type="button" id="abBtnB" class="ab-btn ab-btn-b" onclick="switchAB('b')">
+            <span class="ab-label">B</span>
+            <span class="ab-desc">変換後</span>
+        </button>
+    </div>
+    <audio id="abPlayer" controls style="width:100%;margin-top:12px;"></audio>
+    <div style="font-size:11px;color:var(--dim);margin-top:8px;">A/Bボタンで元音源と変換後を切り替えて聴き比べできます。</div>
+</div>
 </div>
 
 <script>
@@ -1939,7 +2087,133 @@ function clearAllStorage(){
 }
 updateStorageInfo();
 
-// ─── マイク録音 ───
+// ─── プリセット ───
+const PRESET_KEY = "audioshift_presets";
+
+function loadPresets(){
+    try{ return JSON.parse(localStorage.getItem(PRESET_KEY)) || []; }
+    catch(e){ return []; }
+}
+function savePresets(list){
+    try{ localStorage.setItem(PRESET_KEY, JSON.stringify(list)); }
+    catch(e){}
+}
+function savePreset(){
+    const nameInput = document.getElementById("presetNameInput");
+    const name = (nameInput ? nameInput.value.trim() : "");
+    if(!name){ alert("プリセット名を入力してください。"); return; }
+    const inp = document.getElementById("semitones");
+    const semi = inp ? parseFloat(inp.value) : 0;
+    const list = loadPresets();
+    // 同名は上書き
+    const dup = list.findIndex(p => p.name === name);
+    const entry = { name, semitones: semi, format: outFormat, bitrate: mp3Bitrate };
+    if(dup !== -1) list[dup] = entry;
+    else list.push(entry);
+    savePresets(list);
+    if(nameInput) nameInput.value = "";
+    renderPresets();
+    updateStorageInfo();
+    setStatus("⭐ プリセット「" + name + "」を保存しました。", 0);
+}
+function deletePreset(index){
+    const list = loadPresets();
+    list.splice(index, 1);
+    savePresets(list);
+    renderPresets();
+    updateStorageInfo();
+}
+function applyPreset(p){
+    const inp = document.getElementById("semitones");
+    if(inp){ inp.value = p.semitones; updatePitchInfo(); }
+    if(p.format === "mp3") setFormat("mp3");
+    else setFormat("wav");
+    if(p.bitrate) setBitrate(p.bitrate);
+    const sign = p.semitones > 0 ? "+" : "";
+    setStatus("⭐ プリセット「" + p.name + "」を呼び出しました：" + sign + p.semitones + " 半音・" + p.format.toUpperCase(), 0);
+}
+function renderPresets(){
+    const list = loadPresets();
+    const container = document.getElementById("presetList");
+    if(!container) return;
+    container.innerHTML = "";
+    if(list.length === 0){
+        container.innerHTML = "<div style=\\"font-size:12px;color:var(--dim);text-align:center;padding:8px;\\">保存されたプリセットはありません</div>";
+        return;
+    }
+    list.forEach((p, i) => {
+        const item = document.createElement("div");
+        item.className = "preset-item";
+        item.title = "タップで設定を呼び出す";
+        const sign = p.semitones > 0 ? "+" : "";
+        const detail = sign + p.semitones + " 半音 ／ " + p.format.toUpperCase() + (p.format==="mp3" ? " " + p.bitrate + "k" : "");
+        const applyLabel = sign + p.semitones + "半音・" + p.format.toUpperCase() + "をセット";
+        item.innerHTML =
+            "<div class=\\"preset-info\\">" +
+                "<div class=\\"preset-name\\">⭐ " + p.name + "</div>" +
+                "<div class=\\"preset-detail\\">" + detail + "</div>" +
+            "</div>" +
+            "<span class=\\"preset-apply\\">" + applyLabel + "</span>" +
+            "<button type=\\"button\\" class=\\"preset-del\\" title=\\"削除\\">✕</button>";
+        item.addEventListener("click", () => applyPreset(p));
+        const del = item.querySelector(".preset-del");
+        del.addEventListener("click", e => { e.stopPropagation(); deletePreset(i); });
+        container.appendChild(item);
+    });
+}
+renderPresets();
+
+// ─── A/B 聴き比べ ───
+let abResultUrl = null;   // 変換後のURL
+let abCurrentMode = "b";  // 現在どちらを再生中か
+
+function showABCompare(resultUrl){
+    abResultUrl = resultUrl;
+    const box = document.getElementById("abCompareBox");
+    if(!box) return;
+    box.style.display = "block";
+    // デフォルトはB（変換後）を表示
+    switchAB("b");
+}
+
+function switchAB(mode){
+    abCurrentMode = mode;
+    const abPlayer = document.getElementById("abPlayer");
+    const btnA = document.getElementById("abBtnA");
+    const btnB = document.getElementById("abBtnB");
+    if(!abPlayer) return;
+
+    const wasPlaying = !abPlayer.paused;
+    const currentTime = abPlayer.currentTime;
+
+    if(mode === "a"){
+        // 元音源（wavePreviewURL）
+        if(!wavePreviewURL){ return; }
+        abPlayer.src = wavePreviewURL;
+        btnA.classList.add("active");
+        btnB.classList.remove("active");
+    }else{
+        // 変換後
+        if(!abResultUrl){ return; }
+        abPlayer.src = abResultUrl;
+        btnA.classList.remove("active");
+        btnB.classList.add("active");
+    }
+    // 同じ再生位置から継続
+    abPlayer.addEventListener("loadedmetadata", function onLoad(){
+        abPlayer.removeEventListener("loadedmetadata", onLoad);
+        abPlayer.currentTime = Math.min(currentTime, abPlayer.duration || 0);
+        if(wasPlaying){ abPlayer.play().catch(()=>{}); }
+    });
+}
+
+function hideABCompare(){
+    const box = document.getElementById("abCompareBox");
+    if(box) box.style.display = "none";
+    const abPlayer = document.getElementById("abPlayer");
+    if(abPlayer){ abPlayer.pause(); abPlayer.src = ""; }
+    abResultUrl = null;
+}
 let micStream = null;
 let micRecorder = null;
 let micChunks = [];
@@ -2379,8 +2653,7 @@ function clearAudioFile(){
     const elapsedResult = document.getElementById("elapsedResult");
     if(elapsedResult) elapsedResult.style.display = "none";
     hideDoneBanner();
-
-    // 変換ボタンをリセット
+    hideABCompare();
     convertBtn.disabled = false;
     convertBtn.textContent = "⚡ 高品質変換する";
     setStatus("音源を選択してください。", 0);
@@ -2447,6 +2720,9 @@ async function loadWaveform(file){
         // 自動取り込み済みの通知を表示（MOVの取り込みセクションは隠す）
         const autoNotice = document.getElementById("autoDecodeNotice");
         if(autoNotice) autoNotice.style.display = "block";
+        // 音源の長さを表示
+        const fileInfo = document.getElementById("audioFileInfo");
+        if(fileInfo) fileInfo.textContent = "（" + fmtMMSS(audioBuf.duration) + "）";
         const capSection = document.getElementById("movCaptureSection");
         if(capSection) capSection.style.display = "none";
         updateRangeUI();
@@ -3436,6 +3712,9 @@ convertBtn.addEventListener("click", async () => {
 
         player.src = resultUrl;
         player.style.display = "block";
+
+        // A/B聴き比べを表示
+        showABCompare(resultUrl);
 
         const baseName = file.name.replace(/\\.[^/.]+$/, "");
         const ext = (outFormat === "mp3") ? "mp3" : "wav";
