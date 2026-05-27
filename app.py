@@ -1321,7 +1321,7 @@ a#downloadLink:hover{
     <div class="history-header">
         <div>
             <label class="field-label" style="margin:0;">🕐 変換履歴 / History</label>
-            <div style="font-size:11px;color:var(--dim);margin-top:3px;">タップすると移調量・形式などの設定が呼び出されます</div>
+            <div style="font-size:11px;color:var(--dim);margin-top:3px;">タップすると、その時の<strong style="color:var(--cyan-bright)">移調量・出力形式・ビットレート</strong>が入力欄に自動でセットされます</div>
         </div>
         <button type="button" class="history-clear-btn" onclick="clearHistoryData()">すべて削除</button>
     </div>
@@ -1852,6 +1852,7 @@ function renderHistory(){
         item.title = "タップで設定を呼び出す";
         const sign = h.semitones > 0 ? "+" : "";
         const detail = sign + h.semitones + " 半音 ／ " + h.format.toUpperCase() + " ／ " + h.elapsed + " ／ " + h.date;
+        const applyLabel = sign + h.semitones + "半音・" + h.format.toUpperCase() + "をセット";
         item.innerHTML =
             "<span class=\\"history-icon\\">🎵</span>" +
             "<div class=\\"history-info\\">" +
@@ -1859,7 +1860,7 @@ function renderHistory(){
                 "<div class=\\"history-detail\\">" + detail + "</div>" +
             "</div>" +
             "<div class=\\"history-actions\\">" +
-                "<span class=\\"history-apply\\">設定を呼出</span>" +
+                "<span class=\\"history-apply\\">" + applyLabel + "</span>" +
                 "<button type=\\"button\\" class=\\"history-del-btn\\" title=\\"この履歴を削除\\">✕</button>" +
             "</div>";
         // 適用（アイテム全体クリック）
